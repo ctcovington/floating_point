@@ -1,0 +1,21 @@
+name: snapping_mechanism
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  # - r
+  # - r-rmpfr
+  # - r-plyr
+  # - r-e1071
+  # - r-vgam
+  # - r-stringr
+  # - r-desctools
+  # - gmp
+  - pandas
+  - numpy
+  - seaborn
+  - matplotlib
+  - ipython
+  - pip
+  - pip:
+      - crlibm
