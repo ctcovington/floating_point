@@ -52,18 +52,19 @@ def test(dist, mean, sd, bound_sd, epsilon, n):
     laplace_snapped_diff = abs(private_mean_laplace - private_mean_snapped)
 
     # return list of information about the test
-    return([dist, mean, sd, lower_bound, upper_bound, epsilon, n, observed_mean_of_clipped, sensitivity,
+    return([dist, mean, sd, bound_sd, lower_bound, upper_bound, epsilon, n, observed_mean_of_clipped, sensitivity,
             private_mean_laplace, private_mean_snapped, private_mean_laplace_error, private_mean_snapped_error, laplace_snapped_diff])
 
 def create_df(results_list):
     return(pd.DataFrame(results_list,
-                              columns = ['distribution', 'mean', 'sd', 'lower_bound', 'upper_bound',
+                              columns = ['distribution', 'mean', 'sd', 'bound_sd', 'lower_bound', 'upper_bound',
                                          'epsilon', 'n', 'observed_mean_of_clipped',
                                          'sensitivity', 'private_mean_laplace', 'private_mean_snapped',
                                          'private_mean_laplace_error', 'private_mean_snapped_error',
                                          'laplace_snapped_diff']))
 
 def create_df_and_plot_results(results_list, output_dir, dist, name):
+    """"""
     # create output subdirectory
     inner_output_dir = os.path.join(output_dir, dist, name)
     if not os.path.exists(inner_output_dir):
@@ -76,7 +77,6 @@ def create_df_and_plot_results(results_list, output_dir, dist, name):
     results_df.to_csv(os.path.join(inner_output_dir, 'test_results.csv'))
 
     # histogram of laplace_snapped_diff by epsilon/n
-    # xlab_format = lambda x,pos : "${}$".format(f._formatSciNotation('%1.10e' % x))
     plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', sharex = False, sharey = False, margin_titles = True)
     plot.map(sns.distplot, 'laplace_snapped_diff', bins = 30, kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
     for row in plot.axes:
@@ -109,20 +109,21 @@ def create_df_and_plot_results(results_list, output_dir, dist, name):
     return(None)
 
 def run_tests(output_dir):
+    """"""
     # build results dataframe
     results = []
 
     # create grid of parameters
-    dists = ['normal', 'lognormal']
+    distributions = ['normal', 'lognormal']
     mean = 0
     sds = [10**n for n in range(-2, 3)]
     bound_sds = [1,2,3,4]
     epsilons = [0.1, 0.3, 0.5, 0.7, 0.9]
     ns = [10**n for n in range(1, 5)]
-    n_tests = len(dists) * len(sds) * len(bound_sds) * len(epsilons) * len(ns)
+    n_tests = len(distributions) * len(sds) * len(bound_sds) * len(epsilons) * len(ns)
 
     test_num = 0
-    for dist in dists:
+    for distribution in distributions:
         for sd in sds:
             for bound_sd in bound_sds:
                 sd_bound_sd_combination_results = []
@@ -132,7 +133,7 @@ def run_tests(output_dir):
                         print('test {0} of {1}'.format(test_num, n_tests))
                         for i in range(1000):
                             # test combination of parameters and plot distribution of
-                            sd_bound_sd_combination_results.append(test(dist, mean, sd, bound_sd, epsilon, n))
+                            sd_bound_sd_combination_results.append(test(distribution, mean, sd, bound_sd, epsilon, n))
                 create_df_and_plot_results(sd_bound_sd_combination_results, output_dir, dist, name = 'sd_{0}_bound_sd_{1}'.format(sd, bound_sd))
                 results.extend(sd_bound_sd_combination_results)
 
@@ -140,15 +141,21 @@ def run_tests(output_dir):
     overall_df = create_df(results)
 
     # get statistics by group
-    grouped_df = overall_df.groupby(['distribution', 'sd', 'lower_bound', 'upper_bound', 'epsilon', 'n'])
+    grouped_df = overall_df.groupby(['distribution', 'sd', 'bound_sd', 'epsilon', 'n'])
     grouped_df_statistics = grouped_df.describe()
     grouped_df_statistics.to_csv(os.path.join(output_dir, 'overall_statistics.csv'))
 
-    # results_df['nrmsd_snapped_performance'] = results_df['laplace_nmrsd'] - results_df['snapped_nmrsd']
-    # results_df['log10_nrmsd_snapped_performance'] = np.log10(results_df['nrmsd_snapped_performance'])
+    # show boxplots of log10_laplace_snapped_diff by sensitivity/distribution
+    overall_df['rounded_sensitivity'] = round(overall_df['sensitivity'], 3)
+    overall_df['log10_laplace_snapped_diff'] = np.log10(overall_df['laplace_snapped_diff'])
+    plt.figure()
+    plot = sns.boxplot(x = 'rounded_sensitivity', y = 'log10_laplace_snapped_diff', hue = 'distribution', data = overall_df)
+    plt.xticks(size = 7, rotation = -30)
+    plot.xaxis.set_label_text('sensitivity (rounded to 3 significant figures)')
+    plot.yaxis.set_label_text('log10(|estimate_from_laplace - estimate_from_snapped|)')
+    plot_fig = plot.get_figure()
+    plot_fig.savefig(os.path.join(output_dir, 'log10_laplace_snapped_diff_boxplots.png'))
 
-    # return results dataframe
-    # results_df.to_csv(os.path.join(output_dir, 'test_results.csv'))
     return(None)
 
 def main():
