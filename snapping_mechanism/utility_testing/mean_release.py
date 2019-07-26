@@ -20,12 +20,12 @@ def generate_lognormal_data(mean, sd, n):
     """
     return(np.random.lognormal(mean = mean, sigma = sd, size = n))
 
-def test(dist, mean, sd, bound_sd, epsilon, n):
+def test(distribution, mean, sd, bound_sd, epsilon, n):
     """"""
     # generate simulated data
-    if dist == 'normal':
+    if distribution == 'normal':
         data = generate_gaussian_data(mean, sd, n)
-    elif dist == 'lognormal':
+    elif distribution == 'lognormal':
         data = generate_lognormal_data(mean, sd, n)
 
     # use -/+ 3 std_dev as the lower/upper bounds we imagine the user could set
@@ -42,20 +42,19 @@ def test(dist, mean, sd, bound_sd, epsilon, n):
     private_mean_laplace = cc_laplace.add_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon)
     private_mean_snapped = cc_snap.add_snapped_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon, B)
 
-    # calculate mean squared error
-    # laplace_mse = np.mean((data - private_mean_laplace)**2)
-    # snapped_mse = np.mean((data - private_mean_snapped)**2)
-
     # NOTE: not sure if this is exactly the right error metric -- should they be compared to the observed mean?
     private_mean_laplace_error = abs(private_mean_laplace - observed_mean_of_clipped)
     private_mean_snapped_error = abs(private_mean_snapped - observed_mean_of_clipped)
     laplace_snapped_diff = abs(private_mean_laplace - private_mean_snapped)
 
     # return list of information about the test
-    return([dist, mean, sd, bound_sd, lower_bound, upper_bound, epsilon, n, observed_mean_of_clipped, sensitivity,
+    return([distribution, mean, sd, bound_sd, lower_bound, upper_bound, epsilon, n, observed_mean_of_clipped, sensitivity,
             private_mean_laplace, private_mean_snapped, private_mean_laplace_error, private_mean_snapped_error, laplace_snapped_diff])
 
 def create_df(results_list):
+    """
+    create standard dataframe from list of results
+    """
     return(pd.DataFrame(results_list,
                               columns = ['distribution', 'mean', 'sd', 'bound_sd', 'lower_bound', 'upper_bound',
                                          'epsilon', 'n', 'observed_mean_of_clipped',
@@ -63,28 +62,55 @@ def create_df(results_list):
                                          'private_mean_laplace_error', 'private_mean_snapped_error',
                                          'laplace_snapped_diff']))
 
-def create_df_and_plot_results(results_list, output_dir, dist, name):
+def plot_results(results_list, output_dir, distribution, sd_bound_sd_name):
     """"""
     # create output subdirectory
-    inner_output_dir = os.path.join(output_dir, dist, name)
+    inner_output_dir = os.path.join(output_dir, distribution, sd_bound_sd_name)
     if not os.path.exists(inner_output_dir):
         os.makedirs(inner_output_dir)
 
     # create pandas dataframe of results
     results_df = create_df(results_list)
 
+    # create new variable denoting which mechanism had lower error
+    mechanism_comparison_conditions = [results_df['private_mean_laplace_error'] < results_df['private_mean_snapped_error'],
+                                       results_df['private_mean_laplace_error'] == results_df['private_mean_snapped_error'],
+                                       results_df['private_mean_laplace_error'] > results_df['private_mean_snapped_error']]
+    mechanism_comparison_choices = ['laplace', 'tie', 'snapped']
+    results_df['lower_error_mechanism'] = np.select(mechanism_comparison_conditions, mechanism_comparison_choices)
+
     # save results dataframe
     results_df.to_csv(os.path.join(inner_output_dir, 'test_results.csv'))
 
-    # histogram of laplace_snapped_diff by epsilon/n
-    plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', sharex = False, sharey = False, margin_titles = True)
+    '''
+    histograms of laplace_snapped_diff by epsilon and n
+    '''
+    plt.figure()
+    plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', hue = 'lower_error_mechanism',
+                         sharex = False, sharey = False, margin_titles = True, legend_out = True)
     plot.map(sns.distplot, 'laplace_snapped_diff', bins = 30, kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
+    plot.add_legend()
     for row in plot.axes:
         for subplot in row:
             plt.sca(subplot)
-            plt.xticks(size = 7, rotation = -30)
-    plot.fig.tight_layout()
+            plt.xticks(size = 6.5, rotation = -30)
+    # plot.fig.tight_layout()
+    plot.fig.subplots_adjust(bottom = 0.05)
     plot.savefig(os.path.join(inner_output_dir, 'laplace_snapped_difference_dist.png'))
+    plt.close()
+
+    # '''
+    # histograms of laplace_snapped_diff, separated by lower_error_mechanism by epsilon and n
+    # '''
+    # plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', sharex = False, sharey = False, margin_titles = True)
+    # plot.map(sns.distplot, 'laplace_snapped_diff', bins = 30, kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
+    # for row in plot.axes:
+    #     for subplot in row:
+    #         plt.sca(subplot)
+    #         plt.xticks(size = 7, rotation = -30)
+    # plot.fig.tight_layout()
+    # plot.savefig(os.path.join(inner_output_dir, 'laplace_snapped_difference_dist.png'))
+
     #
     # if type == 'overall':
     #     # plot nrmsd_snapped_performance by other variables
@@ -127,14 +153,18 @@ def run_tests(output_dir):
         for sd in sds:
             for bound_sd in bound_sds:
                 sd_bound_sd_combination_results = []
+                sd_bound_sd_name = 'sd_{0}_bound_sd_{1}'.format(sd, bound_sd)
                 for epsilon in epsilons:
                     for n in ns:
+                        epsilon_n_name = 'epsilon_{0}_n_{1}'.format(epsilon, n)
                         test_num += 1
                         print('test {0} of {1}'.format(test_num, n_tests))
                         for i in range(1000):
                             # test combination of parameters and plot distribution of
-                            sd_bound_sd_combination_results.append(test(distribution, mean, sd, bound_sd, epsilon, n))
-                create_df_and_plot_results(sd_bound_sd_combination_results, output_dir, dist, name = 'sd_{0}_bound_sd_{1}'.format(sd, bound_sd))
+                            test_results = test(distribution, mean, sd, bound_sd, epsilon, n)
+                            # plot_test_level_results(test_results, output_dir, distribution, sd_bound_sd_name, epsilon_n_name)
+                            sd_bound_sd_combination_results.append(test_results)
+                plot_results(sd_bound_sd_combination_results, output_dir, distribution, sd_bound_sd_name)
                 results.extend(sd_bound_sd_combination_results)
 
     # create overall dataframe
@@ -155,6 +185,7 @@ def run_tests(output_dir):
     plot.yaxis.set_label_text('log10(|estimate_from_laplace - estimate_from_snapped|)')
     plot_fig = plot.get_figure()
     plot_fig.savefig(os.path.join(output_dir, 'log10_laplace_snapped_diff_boxplots.png'))
+    plt.close()
 
     return(None)
 
