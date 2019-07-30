@@ -3,10 +3,12 @@ import cc_laplace
 import numpy as np
 import pandas as pd
 import os
+import shutil
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import rpy2.robjects
 # import plotly, plotly.express
 
 def generate_gaussian_data(mean, sd, n):
@@ -20,7 +22,7 @@ def generate_lognormal_data(mean, sd, n):
     """
     return(np.random.lognormal(mean = mean, sigma = sd, size = n))
 
-def test(distribution, mean, sd, bound_sd, epsilon, n):
+def test(distribution, mean, sd, bound_sd, epsilon, n, r_object):
     """"""
     # generate simulated data
     if distribution == 'normal':
@@ -28,7 +30,7 @@ def test(distribution, mean, sd, bound_sd, epsilon, n):
     elif distribution == 'lognormal':
         data = generate_lognormal_data(mean, sd, n)
 
-    # use -/+ 3 std_dev as the lower/upper bounds we imagine the user could set
+    # use -/+ <bound_sd> std_dev as the lower/upper bounds we imagine the user could set
     lower_bound = mean - bound_sd * sd # NOTE: mean should be 0, but kept general in case we want to make changes later
     upper_bound = mean + bound_sd * sd # NOTE: mean should be 0, but kept general in case we want to make changes later
     B = max(abs(lower_bound), abs(upper_bound))
@@ -38,18 +40,22 @@ def test(distribution, mean, sd, bound_sd, epsilon, n):
     observed_mean_of_clipped = np.mean(data_clipped)
     sensitivity = (upper_bound - lower_bound) / n
 
-    # generate private means using both the laplace and snapping mechanisms
+    # generate private means using all mechanisms
     private_mean_laplace = cc_laplace.add_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon)
     private_mean_snapped = cc_snap.add_snapped_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon, B)
+    private_mean_snapped_gk_object = r_object.slaplace(observed_mean_of_clipped, sensitivity, epsilon, -B, B)
+    private_mean_snapped_gk = next(private_mean_snapped_gk_object.items())[1] # NOTE: this should work?
 
     # NOTE: not sure if this is exactly the right error metric -- should they be compared to the observed mean?
     private_mean_laplace_error = abs(private_mean_laplace - observed_mean_of_clipped)
     private_mean_snapped_error = abs(private_mean_snapped - observed_mean_of_clipped)
+    private_mean_snapped_gk_error = abs(private_mean_snapped_gk - observed_mean_of_clipped)
     laplace_snapped_diff = abs(private_mean_laplace - private_mean_snapped)
 
     # return list of information about the test
     return([distribution, mean, sd, bound_sd, lower_bound, upper_bound, epsilon, n, observed_mean_of_clipped, sensitivity,
-            private_mean_laplace, private_mean_snapped, private_mean_laplace_error, private_mean_snapped_error, laplace_snapped_diff])
+            private_mean_laplace, private_mean_snapped, private_mean_snapped_gk,
+            private_mean_laplace_error, private_mean_snapped_error, private_mean_snapped_gk_error, laplace_snapped_diff])
 
 def create_df(results_list):
     """
@@ -58,9 +64,16 @@ def create_df(results_list):
     return(pd.DataFrame(results_list,
                               columns = ['distribution', 'mean', 'sd', 'bound_sd', 'lower_bound', 'upper_bound',
                                          'epsilon', 'n', 'observed_mean_of_clipped',
-                                         'sensitivity', 'private_mean_laplace', 'private_mean_snapped',
-                                         'private_mean_laplace_error', 'private_mean_snapped_error',
+                                         'sensitivity', 'private_mean_laplace', 'private_mean_snapped', 'private_mean_snapped_gk',
+                                         'private_mean_laplace_error', 'private_mean_snapped_error', 'private_mean_snapped_gk_error',
                                          'laplace_snapped_diff']))
+
+def multihist(x, hue, n_bins = 30, color = None, **kws):
+    """"""
+    bins = np.linspace(0, np.max(x), n_bins)
+    for name, x_i in x.groupby(hue):
+        sns.distplot(x_i, bins = bins, label = name, **kws)
+    return(None)
 
 def plot_results(results_list, output_dir, distribution, sd_bound_sd_name):
     """"""
@@ -85,18 +98,36 @@ def plot_results(results_list, output_dir, distribution, sd_bound_sd_name):
     '''
     histograms of laplace_snapped_diff by epsilon and n
     '''
-    plt.figure()
-    plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', hue = 'lower_error_mechanism',
+    plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n',
                          sharex = False, sharey = False, margin_titles = True, legend_out = True)
-    plot.map(sns.distplot, 'laplace_snapped_diff', bins = 30, kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
+    plot.map(multihist, 'laplace_snapped_diff', 'lower_error_mechanism', kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
     plot.add_legend()
     for row in plot.axes:
         for subplot in row:
             plt.sca(subplot)
-            plt.xticks(size = 6.5, rotation = -30)
-    # plot.fig.tight_layout()
+            plt.xticks(size = 5.5, rotation = -30)
     plot.fig.subplots_adjust(bottom = 0.05)
     plot.savefig(os.path.join(inner_output_dir, 'laplace_snapped_difference_dist.png'))
+    plt.close()
+
+    '''
+    histograms of error for each mechanism
+    '''
+    long_df = pd.melt(results_df, id_vars = ['epsilon', 'n'], value_vars = ['private_mean_laplace_error', 'private_mean_snapped_error', 'private_mean_snapped_gk_error'],
+                      var_name = 'mechanism', value_name = 'error')
+    long_df['mechanism'] = long_df['mechanism'].replace({'private_mean_laplace_error': 'laplace',
+                                                         'private_mean_snapped_error': 'snapping_cc',
+                                                         'private_mean_snapped_gk_error': 'snapping_gk'})
+    plot = sns.FacetGrid(long_df, row = 'epsilon', col = 'n',
+                         sharex = False, sharey = False, margin_titles = True, legend_out = True)
+    plot.map(multihist, 'error', 'mechanism', kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
+    plot.add_legend()
+    for row in plot.axes:
+        for subplot in row:
+            plt.sca(subplot)
+            plt.xticks(size = 5.5, rotation = -30)
+    plot.fig.subplots_adjust(bottom = 0.05)
+    plot.savefig(os.path.join(inner_output_dir, 'error_dist_by_mechanism.png'))
     plt.close()
 
     # '''
@@ -139,13 +170,17 @@ def run_tests(output_dir):
     # build results dataframe
     results = []
 
+    # initialize rpy2 object to call R functions
+    r_object = rpy2.robjects.r
+    r_object.source('gk_snap.R')
+
     # create grid of parameters
     distributions = ['normal', 'lognormal']
     mean = 0
-    sds = [10**n for n in range(-2, 3)]
-    bound_sds = [1,2,3,4]
+    sds = [10**n for n in range(-1, 3)]
+    bound_sds = [1,2,3]
     epsilons = [0.1, 0.3, 0.5, 0.7, 0.9]
-    ns = [10**n for n in range(1, 5)]
+    ns = [10**n for n in range(2, 5)]
     n_tests = len(distributions) * len(sds) * len(bound_sds) * len(epsilons) * len(ns)
 
     test_num = 0
@@ -160,11 +195,14 @@ def run_tests(output_dir):
                         test_num += 1
                         print('test {0} of {1}'.format(test_num, n_tests))
                         for i in range(1000):
-                            # test combination of parameters and plot distribution of
-                            test_results = test(distribution, mean, sd, bound_sd, epsilon, n)
-                            # plot_test_level_results(test_results, output_dir, distribution, sd_bound_sd_name, epsilon_n_name)
+                            # test combination of parameters
+                            test_results = test(distribution, mean, sd, bound_sd, epsilon, n, r_object)
                             sd_bound_sd_combination_results.append(test_results)
+
+                # plot results at level of distribution/sd/bound_sd
                 plot_results(sd_bound_sd_combination_results, output_dir, distribution, sd_bound_sd_name)
+
+                # add results to overall results list
                 results.extend(sd_bound_sd_combination_results)
 
     # create overall dataframe
@@ -195,6 +233,7 @@ def main():
 
     # set output location
     output_dir = os.path.join('mean_release_output')
+    shutil.rmtree(output_dir)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 

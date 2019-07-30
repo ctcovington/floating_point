@@ -1,0 +1,8 @@
+papers
+**/*.aux
+**/*.fdb_*
+**/*.fls
+**/*.log
+**/*.out
+**/*.synctex.gz
+**/__pycache__/
