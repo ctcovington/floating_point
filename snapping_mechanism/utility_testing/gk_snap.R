@@ -71,9 +71,9 @@ laptest <-function(x,s,eps,times,l=-2^20, u=2^20){
   library(VGAM)
   values <- runif(times, 0.0, 1.0)
   for(i in 1:times)
-    # values[i]=clamp(x+rlaplace(1,s=s/eps),u,l) # NOTE: CC thinks this might be wrong? clamping happens on x before it is used here and shouldn't
+    values[i]=clamp(x+rlaplace(1,s=s/eps),u,l) # NOTE: CC thinks this might be wrong? clamping happens on x before it is used here and shouldn't
                                                # happen after as far as he knows
-    values[i] = x + rlaplace(1, s = s/eps)
+    # values[i] = x + rlaplace(1, s = s/eps)
   values<-sort(values)
   hist(values,times)
   print(paste0("Experimental Var: ",var(values)," Theoretical Var: ", 2*(s/eps)^2))
