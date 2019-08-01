@@ -16,6 +16,7 @@ dependencies:
   - seaborn
   - matplotlib
   - rpy2
+  - gmpy2
   - ipython
   - pip
   - pip:
