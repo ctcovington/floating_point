@@ -9,7 +9,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import rpy2.robjects
-# import plotly, plotly.express
 
 def generate_gaussian_data(mean, sd, n):
     """"""
@@ -41,8 +40,8 @@ def test(distribution, mean, sd, bound_sd, epsilon, n, r_object):
     sensitivity = (upper_bound - lower_bound) / n
 
     # generate private means using all mechanisms
-    private_mean_laplace = cc_laplace.add_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon)
-    private_mean_snapped = cc_snap.add_snapped_laplace_noise(observed_mean_of_clipped, sensitivity, epsilon, B)
+    private_mean_laplace = observed_mean_of_clipped + cc_laplace.add_laplace_noise(sensitivity, epsilon)
+    private_mean_snapped = observed_mean_of_clipped + cc_snap.Snapping_Mechanism(observed_mean_of_clipped, sensitivity, epsilon, B).get_snapped_noise()
     private_mean_snapped_gk_object = r_object.slaplace(observed_mean_of_clipped, sensitivity, epsilon, -B, B)
     private_mean_snapped_gk = next(private_mean_snapped_gk_object.items())[1] # NOTE: this should work?
 
@@ -130,39 +129,6 @@ def plot_results(results_list, output_dir, distribution, sd_bound_sd_name):
     plot.savefig(os.path.join(inner_output_dir, 'error_dist_by_mechanism.png'))
     plt.close()
 
-    # '''
-    # histograms of laplace_snapped_diff, separated by lower_error_mechanism by epsilon and n
-    # '''
-    # plot = sns.FacetGrid(results_df, row = 'epsilon', col = 'n', sharex = False, sharey = False, margin_titles = True)
-    # plot.map(sns.distplot, 'laplace_snapped_diff', bins = 30, kde = False, hist_kws = dict(edgecolor = 'black', linewidth = 1))
-    # for row in plot.axes:
-    #     for subplot in row:
-    #         plt.sca(subplot)
-    #         plt.xticks(size = 7, rotation = -30)
-    # plot.fig.tight_layout()
-    # plot.savefig(os.path.join(inner_output_dir, 'laplace_snapped_difference_dist.png'))
-
-    #
-    # if type == 'overall':
-    #     # plot nrmsd_snapped_performance by other variables
-    #     x_vars = ['sd', 'bound_sd', 'epsilon', 'n', 'sensitivity']
-    #     for x_var in x_vars:
-    #         # static seaborn png
-    #         plt.figure()
-    #         plot = sns.scatterplot(x = x_var, y = 'nrmsd_snapped_performance', data = results_df)
-    #         plot_fig = plot.get_figure()
-    #         plot_fig.savefig(os.path.join(output_dir, 'nrmsd_snapped_perf_by_{0}.png'.format(x_var)))
-    #
-    #         # plotly html
-    #         fig = plotly.express.scatter(results_df, x = x_var, y = 'nrmsd_snapped_performance', hover_data = ['mean', 'sd', 'epsilon', 'n', 'sensitivity', 'nrmsd_snapped_performance'])
-    #         plotly.offline.plot(fig, filename = os.path.join(output_dir, 'nrmsd_snapped_perf_by_{0}.html'.format(x_var)), auto_open=False)
-    #
-    #     # plot raw distribution of nrmsd_snapped_performance
-    #     plt.figure()
-    #     plot = sns.distplot(np.clip(results_df.nrmsd_snapped_performance,-5e-4, 5e-4), bins = 30, kde = False, hist_kws = dict(edgecolor='black', linewidth = 1))
-    #     plot_fig = plot.get_figure()
-    #     plot_fig.savefig(os.path.join(output_dir, 'nrmsd_snapped_perf_dist.png'))
-
     return(None)
 
 def run_tests(output_dir):
@@ -175,12 +141,17 @@ def run_tests(output_dir):
     r_object.source('gk_snap.R')
 
     # create grid of parameters
-    distributions = ['normal', 'lognormal']
+    distributions = ['normal']
     mean = 0
-    sds = [10**n for n in range(-1, 3)]
+    sds = [1]
     bound_sds = [1,2,3]
-    epsilons = [0.1, 0.3, 0.5, 0.7, 0.9]
-    ns = [10**n for n in range(2, 5)]
+    epsilons = [0.001, 0.01, 0.1, 0.3] # TODO: get smaller epsilons?
+    ns = [10**n for n in range(2, 7)]
+    # distributions = ['normal', 'lognormal']
+    # sds = [10**n for n in range(-1, 3)]
+    # bound_sds = [1,2,3]
+    # epsilons = [0.01, 0.1, 0.3, 0.5, 0.7, 0.9] # TODO: get smaller epsilons?
+    # ns = [10**n for n in range(2, 5)]
     n_tests = len(distributions) * len(sds) * len(bound_sds) * len(epsilons) * len(ns)
 
     test_num = 0
@@ -233,9 +204,9 @@ def main():
 
     # set output location
     output_dir = os.path.join('mean_release_output')
-    shutil.rmtree(output_dir)
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+    os.mkdir(output_dir)
 
     # run tests
     run_tests(output_dir)
