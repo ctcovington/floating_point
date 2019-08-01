@@ -45,7 +45,7 @@ class Snapping_Mechanism:
         self.epsilon = epsilon
         self.B = B
 
-    def _double_to_bin(x):
+    def _double_to_bin(self, x):
         """
         Converts a numeric variable (int, float, etc.) to its IEEE 64-bit representation.
         Representation consists of sign (length 1), exponent (length 11), and matissa (length 52).
@@ -58,7 +58,7 @@ class Snapping_Mechanism:
         """
         return(bin(struct.unpack('!Q', struct.pack('!d', x))[0])[2:].zfill(64))
 
-    def _bin_to_double(binary):
+    def _bin_to_double(self, binary):
         """
         Converts an IEEE 64-bit representation to a 64-bit float (double).
         Representation consists of sign (length 1), exponent (length 11), and matissa (length 52).
@@ -71,7 +71,7 @@ class Snapping_Mechanism:
         """
         return(struct.unpack('!d',struct.pack('!Q', int(binary, 2)))[0])
 
-    def _clamp(x, B):
+    def _clamp(self, x, B):
         """
         If abs(x) > abs(B), clamps x towards 0 such that abs(x) = abs(B).
 
@@ -88,7 +88,7 @@ class Snapping_Mechanism:
             return(abs(B))
         return(x)
 
-    def _get_ieee_representation(binary):
+    def _get_ieee_representation(self, binary):
         """
         Get IEEE representation of floating point number from 64-bit binary representation
         """
@@ -97,7 +97,7 @@ class Snapping_Mechanism:
         mantissa = binary[12:]
         return(sign, exponent, mantissa)
 
-    def _get_Lambda(_lambda):
+    def _get_Lambda(self, _lambda):
         """
         Gets closest power or two that is >= _lambda
 
@@ -109,8 +109,8 @@ class Snapping_Mechanism:
             int: m such that Lambda = 2^m
         """
         # get IEEE representation of x
-        binary = _double_to_bin(_lambda)
-        sign, exponent, mantissa = _get_ieee_representation(binary)
+        binary = self._double_to_bin(_lambda)
+        sign, exponent, mantissa = self._get_ieee_representation(binary)
 
         # return smallest power of two >= x
         if all(bit == '0' for bit in mantissa):
@@ -119,9 +119,9 @@ class Snapping_Mechanism:
             # create mantissa of all zeros and incremented exponent, then use these to create smallest power of two >= x
             zero_mantissa = ''.zfill(len(mantissa))
             exponent_plus_one = bin(int(exponent, base = 2) + 1)[2:].zfill(len(exponent))
-            return(bin_to_double(sign + exponent_plus_one + zero_mantissa), int(exponent_plus_one, 2)-1023)
+            return(self._bin_to_double(sign + exponent_plus_one + zero_mantissa), int(exponent_plus_one, 2)-1023)
 
-    def _divide_by_power_of_two(sign, exponent, mantissa, power):
+    def _divide_by_power_of_two(self, sign, exponent, mantissa, power):
         """
         Divide by power of two and return updated exponent
         """
@@ -129,7 +129,7 @@ class Snapping_Mechanism:
         exponent = bin(exponent_num)[2:].zfill(11) # use [2:] to remove 0b from beginning of binary representation
         return(sign, exponent, mantissa)
 
-    def _round_to_nearest_int(sign, exponent, mantissa):
+    def _round_to_nearest_int(self, sign, exponent, mantissa):
         """
         Round the IEEE representation to the nearest integer.
         This proceeds by different cases for when the unbiased exponent >= 0 vs < 0.
@@ -172,7 +172,7 @@ class Snapping_Mechanism:
 
         return(sign, exponent, mantissa)
 
-    def _multiply_by_power_of_two(sign, exponent, mantissa, power):
+    def _multiply_by_power_of_two(self, sign, exponent, mantissa, power):
         """
         Multiply by power of two and return updated exponent
         """
@@ -183,7 +183,7 @@ class Snapping_Mechanism:
             exponent = bin(exponent_num)[2:].zfill(11) # use [2:] to remove 0b from beginning of binary representation
             return(sign, exponent, mantissa)
 
-    def _get_closest_multiple_of_Lambda(x, m):
+    def _get_closest_multiple_of_Lambda(self, x, m):
         """
         Rounds x to the closest multiple of Lambda, resolving ties toward positive infinity
 
@@ -194,11 +194,18 @@ class Snapping_Mechanism:
         Return:
             numeric: x rounded to nearest multiple of Lambda
         """
-        sign, exponent, mantissa = _get_ieee_representation(double_to_bin(x))
-        sign_a, exponent_a, mantissa_a = _divide_by_power_of_two(sign, exponent, mantissa, m)
-        sign_b, exponent_b, mantissa_b = _round_to_nearest_int(sign_a, exponent_a, mantissa_a)
-        sign_c, exponent_c, mantissa_c = _multiply_by_power_of_two(sign_b, exponent_b, mantissa_b, m)
-        return(bin_to_double(str(sign_c) + str(exponent_c) + str(mantissa_c)))
+        sign, exponent, mantissa = self._get_ieee_representation(self._double_to_bin(x))
+        sign_a, exponent_a, mantissa_a = self._divide_by_power_of_two(sign, exponent, mantissa, m)
+        sign_b, exponent_b, mantissa_b = self._round_to_nearest_int(sign_a, exponent_a, mantissa_a)
+        sign_c, exponent_c, mantissa_c = self._multiply_by_power_of_two(sign_b, exponent_b, mantissa_b, m)
+        return(self._bin_to_double(str(sign_c) + str(exponent_c) + str(mantissa_c)))
+
+    def _redefine_epsilon(self, epsilon, B):
+        """
+        Note:
+            This is a work in progress -- not sure whether or not it is correct or could be improved
+        """
+        return(epsilon / (1 + 2**-49 * B))
 
     def get_snapped_noise(self):
         """
@@ -207,7 +214,7 @@ class Snapping_Mechanism:
         # set bits of numerical precision for the elements for which we need exact rounding
         # NOTE: Exact rounding, described in section 1.1 of http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf,
         #       is an alternative to accurate-faithful calculations (which is what most mathemematical libraries are).
-        #       If the real-valued number falls between two floating point numbers, cccurate-faithful calculations
+        #       If the real-valued number falls between two floating point numbers, accurate-faithful calculations
         #       return one of those two floating point numbers and usually returns the one that is closer to the
         #       real number. Exact rounding always returns the floating point number that is closer.
         # NOTE: I don't actually know what precision is needed for exact rounding.
@@ -238,21 +245,15 @@ class Snapping_Mechanism:
                                                                                # precision carries through in later steps
         u_star_exponent = bin(-np.random.geometric(p = 0.5) + 1023)[2:]
         u_star_mantissa = ''.join([str(secure_random.sample(population = [0,1], k = 1)[0]) for i in range(52)])
-        u_star_sample = bin_to_double('0' + str(u_star_exponent) + str(u_star_mantissa))
-
-        # u_star_sample = gmpy2.mpfr(secure_random.uniform(0,1)) # NOTE: is this sufficient for U* as described in Mironov (2012)?
-                                                               #       maybe should just implement as he describes
-
-        '''
-        TODO: GK's version creates overwrites epsilon before this step and I can't figure out why.
-        '''
-        inner_result = _clamp(mechanism_input_scaled, B_scaled) + (sign * 1/self.epsilon * crlibm.log_rn(u_star_sample))
+        u_star_sample = self._bin_to_double('0' + str(u_star_exponent) + str(u_star_mantissa))
+        epsilon_star = self._redefine_epsilon(self.epsilon, B_scaled)
+        inner_result = self._clamp(mechanism_input_scaled, B_scaled) + (sign * 1/epsilon_star * crlibm.log_rn(u_star_sample))
 
         # NOTE: this Lambda is calculated relative to lambda = 1/epsilon rather than sensitivity/epsilon because we have already
         #       scaled by the sensitivity
-        Lambda, m = _get_Lambda(1/self.epsilon)
-        inner_result_rounded = _get_closest_multiple_of_Lambda(float(inner_result), m)
-        private_estimate = _clamp(self.sensitivity * inner_result_rounded, self.B)
+        Lambda, m = self._get_Lambda(1/epsilon_star)
+        inner_result_rounded = self._get_closest_multiple_of_Lambda(float(inner_result), m)
+        private_estimate = self._clamp(self.sensitivity * inner_result_rounded, self.B)
         snapped_noise = private_estimate - self.mechanism_input
 
         return(snapped_noise)
