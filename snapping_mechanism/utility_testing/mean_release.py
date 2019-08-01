@@ -40,7 +40,7 @@ def test(distribution, mean, sd, bound_sd, epsilon, n, r_object):
     sensitivity = (upper_bound - lower_bound) / n
 
     # generate private means using all mechanisms
-    private_mean_laplace = observed_mean_of_clipped + cc_laplace.add_laplace_noise(sensitivity, epsilon)
+    private_mean_laplace = observed_mean_of_clipped + cc_laplace.laplace_noise(sensitivity, epsilon)
     private_mean_snapped = observed_mean_of_clipped + cc_snap.Snapping_Mechanism(observed_mean_of_clipped, sensitivity, epsilon, B).get_snapped_noise()
     private_mean_snapped_gk_object = r_object.slaplace(observed_mean_of_clipped, sensitivity, epsilon, -B, B)
     private_mean_snapped_gk = next(private_mean_snapped_gk_object.items())[1] # NOTE: this should work?
