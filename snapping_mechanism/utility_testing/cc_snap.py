@@ -200,12 +200,13 @@ class Snapping_Mechanism:
         sign_c, exponent_c, mantissa_c = self._multiply_by_power_of_two(sign_b, exponent_b, mantissa_b, m)
         return(self._bin_to_double(str(sign_c) + str(exponent_c) + str(mantissa_c)))
 
-    def _redefine_epsilon(self, epsilon, B):
+    def _redefine_epsilon(self, epsilon, B, eta = 2**-53):
         """
         Note:
-            This is a work in progress -- not sure whether or not it is correct or could be improved
+            This is a work in progress -- maybe could be improved
         """
-        return(epsilon / (1 + 2**-49 * B))
+
+        return((epsilon - 2*eta) / (1 + 12*B*eta))
 
     def get_snapped_noise(self):
         """
