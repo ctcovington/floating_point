@@ -99,7 +99,7 @@ class Snapping_Mechanism:
 
     def _get_Lambda(self, _lambda):
         """
-        Gets closest power or two that is >= _lambda
+        Gets closest power of two that is >= _lambda
 
         Parameters:
             _lambda (numeric): argument to laplace noise.

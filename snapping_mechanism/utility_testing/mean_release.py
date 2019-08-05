@@ -1,8 +1,11 @@
+import sys
+import os
+sys.path.insert(1, os.path.join('..', 'implementation'))
+
 import cc_snap
 import cc_laplace
 import numpy as np
 import pandas as pd
-import os
 import shutil
 import seaborn as sns
 import matplotlib as mpl
