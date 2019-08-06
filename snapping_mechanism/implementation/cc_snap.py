@@ -99,7 +99,7 @@ class Snapping_Mechanism:
         mantissa = binary[12:]
         return(sign, exponent, mantissa)
 
-    def _get_Lambda(self, _lambda):
+    def _get_smallest_greater_power_of_two(self, _lambda):
         """
         Gets closest power of two that is >= _lambda
 
@@ -205,29 +205,43 @@ class Snapping_Mechanism:
         sign_c, exponent_c, mantissa_c = self._multiply_by_power_of_two(sign_b, exponent_b, mantissa_b, m)
         return(self._bin_to_double(str(sign_c) + str(exponent_c) + str(mantissa_c)))
 
-    def _redefine_epsilon(self, epsilon, B, eta = 2**-53):
+    def _redefine_epsilon(self, epsilon, B, precision):
         """
         Note:
             This is a work in progress -- maybe could be improved
         """
 
-        return((epsilon - 2*eta) / (1 + 12*B*eta))
+        eta = gmpy2.mpfr(2**-precision)
+        return(float((epsilon - 2*eta) / (1 + 12*B*eta)))
 
     def get_snapped_noise(self):
         """
         Generates noise for Snapping Mechanism
         """
-        # set bits of numerical precision for the elements for which we need exact rounding
-        # NOTE: Exact rounding, described in section 1.1 of http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf,
-        #       is an alternative to accurate-faithful calculations (which is what most mathemematical libraries are).
-        #       If the real-valued number falls between two floating point numbers, accurate-faithful calculations
-        #       return one of those two floating point numbers and usually returns the one that is closer to the
-        #       real number. Exact rounding always returns the floating point number that is closer.
-        # NOTE: I don't actually know what precision is needed for exact rounding.
-        #       I chose 118 because this is the number of bits necessary for exact rounding of the log (see section
-        #       2.1 at http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf), but I should clarify this
-        #       with someone who might know better
-        gmpy2.get_context().precision = 118
+        # Set bits of numerical precision
+        #
+        # The precision is set based on one of two components of the mechanism; the epsilon redefinition or the
+        # exact rounding of the natural log, whichever needs more precision.
+        #
+        # The redefinition of epsilon (to epsilon') relies on the numerical precision and
+        # can lead to negative epsilon' values (which are not allowed as input to the laplace mechanism)
+        # if epsilon < 2*eta, where eta = 2^-precision
+        #
+        # Exact rounding, described in section 1.1 of http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf,
+        # is an alternative to accurate-faithful calculations (which is what most mathemematical libraries are).
+        # If the real-valued number falls between two floating point numbers, accurate-faithful calculations
+        # return one of those two floating point numbers and usually returns the one that is closer to the
+        # real number. Exact rounding always returns the floating point number that is closer.
+        #
+        # I don't actually know what precision is needed for exact rounding.
+        # I chose 118 because this is the number of bits necessary for exact rounding of the log (see section
+        # 2.1 at http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf), but I should clarify this
+        # with someone who might know better
+
+        # find necessary precision to ensure epsilon_prime > 0
+        eps_precision = abs(self._get_smallest_greater_power_of_two(self.epsilon)[1]) + 2
+        precision = max(118, eps_precision)
+        gmpy2.get_context().precision = precision
 
         '''
         Scale input and bounds to sensitivity 1
@@ -252,12 +266,12 @@ class Snapping_Mechanism:
         u_star_exponent = bin(-np.random.geometric(p = 0.5) + 1023)[2:]
         u_star_mantissa = ''.join([str(secure_random.sample(population = [0,1], k = 1)[0]) for i in range(52)])
         u_star_sample = self._bin_to_double('0' + str(u_star_exponent) + str(u_star_mantissa))
-        epsilon_star = self._redefine_epsilon(self.epsilon, B_scaled)
-        inner_result = self._clamp(mechanism_input_scaled, B_scaled) + (sign * 1/epsilon_star * crlibm.log_rn(u_star_sample))
+        epsilon_prime = self._redefine_epsilon(self.epsilon, B_scaled, precision)
+        inner_result = self._clamp(mechanism_input_scaled, B_scaled) + (sign * 1/epsilon_prime * crlibm.log_rn(u_star_sample))
 
         # NOTE: this Lambda is calculated relative to lambda = 1/epsilon rather than sensitivity/epsilon because we have already
         #       scaled by the sensitivity
-        Lambda, m = self._get_Lambda(1/epsilon_star)
+        Lambda, m = self._get_smallest_greater_power_of_two(1/epsilon_prime)
 
         inner_result_rounded = self._get_closest_multiple_of_Lambda(float(inner_result), m)
         private_estimate = self._clamp(self.sensitivity * inner_result_rounded, self.B)
