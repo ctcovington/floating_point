@@ -25,6 +25,8 @@ class Snapping_Mechanism:
     manipulation, wrote the first implementation of it, and was very helpful in general with ideas and feedback on various
     piece of the implementation.
 
+    Note that the privacy guarantee holds only if lambda < B < lambda*2^46.
+
     Attributes:
         mechanism_input (numeric): Raw (non-private) value of statistic for which you want a private release
         sensitivity (numeric): Sensitivity of function generating mechanism input
@@ -134,31 +136,40 @@ class Snapping_Mechanism:
         Round the IEEE representation to the nearest integer.
         This proceeds by different cases for when the unbiased exponent >= 0 vs < 0.
         """
+
+        '''
+        TODO: what about case where unbiased_exponent_num > 52?
+        '''
         # generate numeric version of unbiased exponent
         unbiased_exponent_num = int(exponent, 2) - 1023
+
+        # create pseudo_mantissa with length potentially > 52 to account for case in which
+        # bit shifting argument needs more bits
+        pseudo_mantissa = mantissa.ljust(unbiased_exponent_num + 1, '0')
 
         if unbiased_exponent_num >= 0:
             '''IEEE_rep >= Lambda'''
             # get elements of mantissa that represent integers
             # (after being multiplied by 2^unbiased_exponent_num)
-            mantissa_subset = mantissa[0:unbiased_exponent_num]
+            mantissa_subset = pseudo_mantissa[0:unbiased_exponent_num]
+
 
             # check to see if mantissa needs to be rounded up or down
-            if mantissa[unbiased_exponent_num] == '1':
+            if pseudo_mantissa[unbiased_exponent_num] == '1':
                 '''mantissa needs to be rounded up'''
                 # if integer part of mantissa is all 1s, rounding needs to be reflected
                 # in the exponent instead
                 if mantissa_subset == '1' * len(mantissa_subset):
-                    mantissa = ''.ljust(52, '0')
+                    mantissa = ''.ljust(52, '0')[0:52]
                     exponent_num = int(exponent, 2) + 1
                     exponent = bin(exponent_num)[2:].ljust(11, '0')
                 else:
                     # if integer part of mantissa not all 1s, just increment mantissa
                     mantissa_subset_inc = bin(int(mantissa_subset, 2) + 1)[2:].zfill(len(mantissa_subset))
-                    mantissa = mantissa_subset_inc.ljust(52, '0')
-            elif mantissa[unbiased_exponent_num] == '0':
+                    mantissa = mantissa_subset_inc.ljust(52, '0')[0:52]
+            elif pseudo_mantissa[unbiased_exponent_num] == '0':
                 '''mantissa needs to be rounded down'''
-                mantissa = mantissa_subset.ljust(52, '0')
+                mantissa = mantissa_subset.ljust(52, '0')[0:52]
         elif unbiased_exponent_num < 0:
             '''IEEE_rep < Lambda'''
             if unbiased_exponent_num == -1:
@@ -253,6 +264,7 @@ class Snapping_Mechanism:
         # NOTE: this Lambda is calculated relative to lambda = 1/epsilon rather than sensitivity/epsilon because we have already
         #       scaled by the sensitivity
         Lambda, m = self._get_Lambda(1/epsilon_star)
+
         inner_result_rounded = self._get_closest_multiple_of_Lambda(float(inner_result), m)
         private_estimate = self._clamp(self.sensitivity * inner_result_rounded, self.B)
         snapped_noise = private_estimate - self.mechanism_input
