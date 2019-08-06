@@ -48,7 +48,8 @@ Drawing $S$ should be done with whichever source of randomness we end up wanting
 We get $U^*$ as Mironov suggests, by sampling our exponent from a geometric distribution with parameter $p = 0.5$ and a mantissa uniformly from $\{0,1\}^{52}$. Let $e$ be a draw from $Geom(0.5)$ and $m_1, m_2 \hdots, m_{52}$ be the bits of our mantissa. Then we have
 \[ U^{*} = (1.m_1m_2 \hdots m_{52})_2 * 2^{1023 - e}. \]
 
-$LN(\cdot)$ must be implemented with exact rounding, which we define below.\footnote{For all rounding, we assume that our goal is to round to the nearest number we are able to represent.} Consider that for an arbitrary $x \in \mathbb{D}$ the natural log of $x$ is not necessarily $\in \mathbb{D}$. Let $a < ln(x) < b$ where $a,b \in \mathbb{D}$ and $\not\exists c \in \mathbb{D}: a < c < b$. Without loss of generality, assume that $\vert a-x \vert < \vert b - x \vert$, so that if we had infinite precision in calculating $ln(x)$ (but still had to output an element $\in \mathbb{D}$), we would output $a$. Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. You can read more about exact rounding in section 1.1 \href{http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf}{here}. Section paper 2.1 of the paper just linked appeals to proofs from a set of papers that say you need 118 bits of precision, in the worst case, to calculate the logarithm with exact rounding. So, the current implementation calculates $LN(U^*)$ with 118 bits of precision. \newline
+$LN(\cdot)$ must be implemented with exact rounding, which we define below.\footnote{For all rounding, we assume that our goal is to round to the nearest number we are able to represent.} Consider that for an arbitrary $x \in \mathbb{D}$ the natural log of $x$ is not necessarily $\in \mathbb{D}$. Let $a < ln(x) < b$ where $a,b \in \mathbb{D}$ and $\not\exists c \in \mathbb{D}: a < c < b$. Without loss of generality, assume that $\vert a-x \vert < \vert b - x \vert$, so that if we had infinite precision in calculating $ln(x)$ (but still had to output an element $\in \mathbb{D}$), we would output $a$.
+Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. You can read more about exact rounding in section 1.1 \href{http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf}{here}. Section paper 2.1 of the paper just linked appeals to proofs from a set of papers that say you need 118 bits of precision, in the worst case, to calculate the logarithm with exact rounding. So, the current implementation calculates $LN(U^*)$ with at least 118 bits of precision.\footnote{We potentially use $> 118$ because of the $\epsilon$ redefinition described later.} \newline
 
 Finally, we can choose to perform $\oplus$ and $\otimes$ with greater than normal precision if we so choose. For now, we are using the same 118 bits of precision for all the basic floating-point operations, using the assumption that exact rounding of basic arithmetic operations should require less precision than calculating the log. This should probably be made more rigorous at some point.
 
@@ -87,7 +88,7 @@ We can rewrite $(e_1 \hdots e_{11})_2 - m$ as $(f_1 \hdots f_{11})_2$ and repres
 \subsubsection{Round $x'$ to nearest integer}
 Let $y = (f_1 \hdots f_{11})_2-1023$. We present slightly different rounding algorithms based on the value of $y$. Note that we abuse notation a bit below; the repeating element notation $\bar{0}$ means to repeat the element (in this case, 0) until the rest of the larger section has been filled. For example, if the mantissa is 52 bits, then $101\bar{0}$ represents $101$ followed by 49 trailing zeros. \newline
 
-\textbf{Case 1: $y \geq 52$}
+\textbf{Case 1: $y \geq 52$} \newline
 If $y \geq 52$, then we know that only integers are representable at this scale, so there is no need to round.\footnote{See \href{https://www.exploringbinary.com/the-spacing-of-binary-floating-point-numbers/}{here} for an explanation.} \newline
 
 \textbf{Case 2: $y \in \{0, 1, \hdots, 51\}$} \newline
@@ -108,18 +109,33 @@ Let $(m'_1 \hdots m'_y)_2 = (m_1 \hdots m_y)_2 + 1$ and $(f'_1 \hdots f'_{11})_2
         \end{cases}
 \end{equation}
 
-\textbf{Case 3: $y = -1$}
+\textbf{Case 3: $y = -1$} \newline
 We think of this case similarly to the beginning of Case 2 and shift the radix point to the left:
 \[ x'' = (-1)^S (0.1m_1 m_2 \hdots)_2. \]
 W know the bit directly to the right of the radix point is the implicit 1 in the IEEE representation, so we know we will round up. Rounding up always rounds to 1, so we know
 \[ x'' = (-1)^S (1.\bar{0})_2 * 2^{(0\bar{1})_2 - 1023}. \]
 
-\textbf{Case 4: $y < -1$}
+\textbf{Case 4: $y < -1$} \newline
 This is exactly the same as Case 3, except we know there are some number of leading zeros between the radix point and the implicit 1. Therefore, we always round down to 0 and get:
 \[ x'' = (-1)^0 (1.\bar{0})_2 * 2^{(\bar{0})_2 - 1023}. \]
 The notation above should not be taken literally, as 0 has a special IEEE representation (all 0s) that does not quite follow the standard formula. We present the standard formally for the sake of consistency and comparison with the earlier cases. \newline
 
 \subsubsection{Multiply $x''$ by $\Lambda$}
 Finally, we multiply $x''$ by $\Lambda$ to get our desired result. This is effectively the opposite of Step 1, in that we add $m$ to the exponent of $x''$. The only difference is that we now have to deal with the case in which $x'' = 0$, because $0*2^m \neq 0$ if you implement multiplication by $2^m$ through exponent addition.\footnote{This is due to the special representation of 0.}
+
+\section{Redefinition of $\epsilon$}
+Mironov states in the last line of the privacy proof that the snapping mechanism respects
+\[ \left( \frac{1 + 12B\eta}{\delta} + 2\eta \right)\text{-DP} \]
+where $B$ is the clamping bound and $\eta$ is the machine-$\epsilon$.\footnote{This is a relatively minor point, but I have normally seen machine-$\epsilon$ defined as the smallest value $\epsilon$ such that $1 \oplus \epsilon \neq 1$. Mironov defines it as the largest $\epsilon$ such that $1 \oplus \epsilon = 1$.} We will take $\eta$ to be our floating-point precision, rather than a value that is machine-imposed, which allows us to use high-precision libraries to get smaller values of $\eta$.
+Because we have rescaled our function to $\Delta f = 1$, this is equivalent to
+\[ \big( \epsilon'(1 + 12B\eta) + 2\eta \big)\text{-DP}. \]
+For ease of notation, we will call this $\epsilon$-DP and I believe it can be thought of as the privacy level relative to the Laplace. That is, if you were to get $\epsilon'$-DP from the Laplace Mechanism, you would get $\epsilon$-DP from the Snapping Mechanism. Put another way, you get $\epsilon$-DP from the Snapping Mechanism when you use $\epsilon'$ to parameterize the Laplace noise that is embedded within the Snapping Mechanism. \newline
+
+This is not really sufficient for to be usable in a system that might require budgeting of a privacy budget, as you cannot (as written above) simply set a privacy allocation for the Snapping Mechanism, as it relies on $B$ and $\eta$. So rather than returning $\epsilon$ as a function of $\epsilon'$, we should do the reverse.
+\begin{align}
+             \epsilon &= \epsilon'(1 + 12B\eta) + 2\eta \nonumber \\
+    \implies \epsilon' &= \frac{\epsilon - 2\eta}{1 + 12B \eta} \nonumber
+\end{align}
+This $\epsilon'$ is what will be used in the parameterization in the Laplace within the Snapping Mechanism. Thus, we need $\epsilon' > 0$, or $\epsilon > 2\eta$, where $\eta = 2^{-p}$, and $p$ is our floating point precision. This simplifies to $\epsilon > 2^{-p+1}$. Assuming we want minimum sufficient precision, we can find the smallest power of two $\geq \epsilon$, call it $2^{-m}$, and let $p = m+2$. For setting our mechanism-level precision, we use the larger of the $p$ we just found or the level necessary to perform exact rounding on the logithm as described earlier (which we currently believe to be 118).
 
 \end{document}
