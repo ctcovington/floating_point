@@ -33,13 +33,13 @@ The snapping mechanism is a differentially-private mechanism introduced in \href
 
 \section{Definitions}
 \subsection{Laplace Mechanism}
-Let $f$ be a function computed on a dataset $D$ with sensitivity $\delta f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\delta f}{\epsilon}$ the Laplace Mechanism is defined as:
+Let $f$ be a function computed on a dataset $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$ the Laplace Mechanism is defined as:
 \[ M_{L}(D, f(\cdot), \lambda) = f(D) + Y \]
 where $Y \sim Laplace(\lambda)$.
 
 \subsection{Snapping Mechanism}
 Let $B$ be a user-chosen quantity that reflects beliefs about reasonable bounds on $f(D)$ and $\Lambda$ be the smallest power of two at least as large as $\lambda$. Using the same notation as above, the snapping mechanism is defined as:
-\[ M_{S}(D, f(\cdot), \lambda, B) = clamp_{B}\left( \lfloor clamp_{B}\left( f(D) \right) + Y \rceil_{\Lambda} \right). \]
+\[ M_{S}(D, f(\cdot), \lambda, B) = clamp_{B}\left( \lfloor clamp_{B}\left( f(D) \right) \oplus Y \rceil_{\Lambda} \right). \]
 where $clamp_{B}(\cdot)$ restricts output to the interval $[-B, B]$ and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest multiple of $\Lambda$, with ties resolved toward $+ \infty$. We will also make use of $\lfloor \cdot \rceil^{*}_{\Lambda}$, which rounds to the nearest multiple of $\Lambda$, with ties resolved toward $- \infty$. \newline
 
 \subsection{Utility}
