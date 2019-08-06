@@ -117,7 +117,7 @@ W know the bit directly to the right of the radix point is the implicit 1 in the
 \textbf{Case 4: $y < -1$}
 This is exactly the same as Case 3, except we know there are some number of leading zeros between the radix point and the implicit 1. Therefore, we always round down to 0 and get:
 \[ x'' = (-1)^0 (1.\bar{0})_2 * 2^{(\bar{0})_2 - 1023}. \]
-The notation should not be taken literally, as 0 has a special IEEE representation (all 0s) that does not quite follow the standard formula. We present the standard formally for the sake of consistency and comparison with the earlier cases. \newline
+The notation above should not be taken literally, as 0 has a special IEEE representation (all 0s) that does not quite follow the standard formula. We present the standard formally for the sake of consistency and comparison with the earlier cases. \newline
 
 \subsubsection{Multiply $x''$ by $\Lambda$}
 Finally, we multiply $x''$ by $\Lambda$ to get our desired result. This is effectively the opposite of Step 1, in that we add $m$ to the exponent of $x''$. The only difference is that we now have to deal with the case in which $x'' = 0$, because $0*2^m \neq 0$ if you implement multiplication by $2^m$ through exponent addition.\footnote{This is due to the special representation of 0.}
