@@ -137,25 +137,19 @@ class Snapping_Mechanism:
         This proceeds by different cases for when the unbiased exponent >= 0 vs < 0.
         """
 
-        '''
-        TODO: what about case where unbiased_exponent_num > 52?
-        '''
         # generate numeric version of unbiased exponent
         unbiased_exponent_num = int(exponent, 2) - 1023
 
-        # create pseudo_mantissa with length potentially > 52 to account for case in which
-        # bit shifting argument needs more bits
-        pseudo_mantissa = mantissa.ljust(unbiased_exponent_num + 1, '0')
-
-        if unbiased_exponent_num >= 0:
+        if unbiased_exponent_num >= 52:
+            return(sign, exponent, mantissa)
+        elif unbiased_exponent_num >= 0:
             '''IEEE_rep >= Lambda'''
             # get elements of mantissa that represent integers
             # (after being multiplied by 2^unbiased_exponent_num)
-            mantissa_subset = pseudo_mantissa[0:unbiased_exponent_num]
-
+            mantissa_subset = mantissa[0:unbiased_exponent_num]
 
             # check to see if mantissa needs to be rounded up or down
-            if pseudo_mantissa[unbiased_exponent_num] == '1':
+            if mantissa[unbiased_exponent_num] == '1':
                 '''mantissa needs to be rounded up'''
                 # if integer part of mantissa is all 1s, rounding needs to be reflected
                 # in the exponent instead
@@ -167,7 +161,7 @@ class Snapping_Mechanism:
                     # if integer part of mantissa not all 1s, just increment mantissa
                     mantissa_subset_inc = bin(int(mantissa_subset, 2) + 1)[2:].zfill(len(mantissa_subset))
                     mantissa = mantissa_subset_inc.ljust(52, '0')[0:52]
-            elif pseudo_mantissa[unbiased_exponent_num] == '0':
+            elif mantissa[unbiased_exponent_num] == '0':
                 '''mantissa needs to be rounded down'''
                 mantissa = mantissa_subset.ljust(52, '0')[0:52]
         elif unbiased_exponent_num < 0:
