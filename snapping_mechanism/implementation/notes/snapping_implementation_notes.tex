@@ -125,7 +125,7 @@ Finally, we multiply $x''$ by $\Lambda$ to get our desired result. This is effec
 
 \section{Redefinition of $\epsilon$}
 Mironov states in the last line of the privacy proof that the snapping mechanism respects
-\[ \left( \frac{1 + 12B\eta}{\delta} + 2\eta \right)\text{-DP} \]
+\[ \left( \frac{1 + 12B\eta}{\lambda} + 2\eta \right)\text{-DP} \]
 where $B$ is the clamping bound and $\eta$ is the machine-$\epsilon$.\footnote{This is a relatively minor point, but I have normally seen machine-$\epsilon$ defined as the smallest value $\epsilon$ such that $1 \oplus \epsilon \neq 1$. Mironov defines it as the largest $\epsilon$ such that $1 \oplus \epsilon = 1$.} We will take $\eta$ to be our floating-point precision, rather than a value that is machine-imposed, which allows us to use high-precision libraries to get smaller values of $\eta$.
 Because we have rescaled our function to $\Delta f = 1$, this is equivalent to
 \[ \big( \epsilon'(1 + 12B\eta) + 2\eta \big)\text{-DP}. \]
