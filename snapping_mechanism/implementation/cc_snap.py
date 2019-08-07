@@ -212,7 +212,7 @@ class Snapping_Mechanism:
         """
 
         eta = gmpy2.mpfr(2**-precision)
-        return(float((epsilon - 2*eta) / (1 + 12*B*eta)))
+        return((epsilon - 2*eta) / (1 + 12*B*eta))
 
     def get_snapped_noise(self):
         """
