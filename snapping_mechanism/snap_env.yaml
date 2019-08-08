@@ -10,6 +10,7 @@ dependencies:
   - r-vgam
   - r-stringr
   - r-desctools
+  - r-reticulate
   - gmp
   - pandas
   - numpy
