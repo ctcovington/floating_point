@@ -25,8 +25,6 @@ class Snapping_Mechanism:
     manipulation, wrote the first implementation of it, and was very helpful in general with ideas and feedback on various
     piece of the implementation.
 
-    Note that the privacy guarantee holds only if lambda < B < lambda*2^46.
-
     Attributes:
         mechanism_input (numeric): Raw (non-private) value of statistic for which you want a private release
         sensitivity (numeric): Sensitivity of function generating mechanism input
