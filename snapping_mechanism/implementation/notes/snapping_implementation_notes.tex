@@ -151,6 +151,7 @@ Consider the following quantity:
 with $Y' \sim Laplace(\lambda')$ where $\lambda' = \frac{1}{e'} = \frac{1 + 12B \eta}{\epsilon - 2\eta}$. This is the amount of noise added to $f(D)$ by the snapping mechanism.\footnote{Note that we ignore the inner $clamp_B$ inside the Snapping Mechanism because we set $B \geq f(D)$.} We have then:
 \begin{equation}
 	N =
+		\label{snapped_noise}
 		\begin{cases}
 			B + f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B  \\
 			B - f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B  \\
@@ -199,5 +200,16 @@ Let $Y \sim Laplace(\lambda)$, where $\lambda = \frac{1}{\epsilon}$, be the dist
 \[ Y' \sim S \otimes \frac{1 + 12B\eta}{\epsilon - 2\eta} \otimes LN(U^*) \]
 and thus,
 \[ Y' = \frac{\epsilon(1 + 12B\eta)}{\epsilon - 2\eta}Y \]
+
+So we can rewrite $\eqref{snapped_noise}$ as
+\begin{equation}
+	\label{snapped_noise_rewrite}
+	N
+		\begin{cases}
+			= B + f(D), &\text{ with probability } F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big)  \\
+			= B - f(D), &\text{ with probability } 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big)  \\
+			\leq \big\vert \frac{\epsilon(1 + 12B\eta)}{\epsilon - 2\eta}Y  \big\vert + \frac{\Lambda}{2}, &\text{ otherwise }
+		\end{cases}
+\end{equation}
 
 \end{document}
