@@ -1,4 +1,5 @@
 papers
+snapping_mechanism/implementation/data
 **/*.aux
 **/*.fdb_*
 **/*.fls
