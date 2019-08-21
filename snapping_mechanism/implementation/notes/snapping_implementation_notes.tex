@@ -39,7 +39,6 @@ where $Y \sim Laplace(\lambda)$.
 Let $B$ be a user-chosen quantity that reflects beliefs about reasonable bounds on $f(D)$ and $\Lambda$ be the smallest power of two at least as large as $\lambda$. Using the same notation as above, the snapping mechanism is defined as:
 \[ M_{S}(D, f(\cdot), \lambda, B) = clamp_{B}\left( \lfloor clamp_{B}\left( f(D) \right) \oplus Y \rceil_{\Lambda} \right). \]
 where $clamp_{B}(\cdot)$ restricts output to the interval $[-B, B]$ and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest multiple of $\Lambda$, with ties resolved toward $+ \infty$.
-% We will also make use of $\lfloor \cdot \rceil^{*}_{\Lambda}$, which rounds to the nearest multiple of $\Lambda$, with ties resolved toward $- \infty$. \newline
 
 \section{Sampling from the Laplace}
 Mironov presents the Laplace noise as
@@ -49,7 +48,8 @@ where $S$ is a uniform draw over $\{\pm 1\}$, $\lambda = \frac{\Delta_f}{\epsilo
 Drawing $S$ should be done with whichever source of randomness we end up wanting to use. The current Python implementation uses system-level randomness by utilizing an instance of the \textbf{random.SystemRandom} class. \newline
 
 We get $U^*$ as Mironov suggests, by sampling our exponent from a geometric distribution with parameter $p = 0.5$ and a mantissa uniformly from $\{0,1\}^{52}$. Let $e$ be a draw from $Geom(0.5)$ and $m_1, m_2 \hdots, m_{52}$ be the bits of our mantissa. Then we have
-\[ U^{*} = (1.m_1m_2 \hdots m_{52})_2 * 2^{1023 - e}. \]
+\[ U^{*} = (1.m_1m_2 \hdots m_{52})_2 * 2^{- e}. \]
+The unit of least precision is completely decided by the value of $e$, so the floating-point values within each unit of least precision are uniformly distributed. Drawing $e$ from the geometric ensures that the probability of drawing a value from a given band is equal to the size of the band. \newline 
 
 $LN(\cdot)$ must be implemented with exact rounding, which we define below.\footnote{For all rounding, we assume that our goal is to round to the nearest number we are able to represent.} Consider that for an arbitrary $x \in \mathbb{D}$ the natural log of $x$ is not necessarily $\in \mathbb{D}$. Let $a < ln(x) < b$ where $a,b \in \mathbb{D}$ and $\not\exists c \in \mathbb{D}: a < c < b$. Without loss of generality, assume that $\vert a-x \vert < \vert b - x \vert$, so that if we had infinite precision in calculating $ln(x)$ (but still had to output an element $\in \mathbb{D}$), we would output $a$.
 Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. You can read more about exact rounding in section 1.1 \href{http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf}{here}. Section paper 2.1 of the paper just linked appeals to proofs from a set of papers that say you need 118 bits of precision, in the worst case, to calculate the logarithm with exact rounding. So, the current implementation calculates $LN(U^*)$ with at least 118 bits of precision.\footnote{We potentially use $> 118$ because of the $\epsilon$ redefinition described later.} \newline
