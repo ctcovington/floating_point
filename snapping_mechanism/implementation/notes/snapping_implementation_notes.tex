@@ -31,7 +31,7 @@ The implementation of the snapping mechanism utilizes a number of ideas describe
 Below we present the mechanisms as if they are operating on the set 64-bit floating point numbers, $\mathbb{D}$, rather than $\mathbb{R}$. We will use $\oplus$ and $\otimes$ to represent the floating-point implementations of addition and multiplication, respectively.
 
 \subsection{Laplace Mechanism}
-Let $f$ be a function computed on a dataset $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$ the Laplace Mechanism is defined as:
+Let $f$ be a function computed on a data set $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$ the Laplace Mechanism is defined as:
 \[ M_{L}(D, f(\cdot), \lambda) = f(D) \oplus Y \]
 where $Y \sim Laplace(\lambda)$.
 
