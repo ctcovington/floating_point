@@ -92,7 +92,7 @@ We can rewrite $(e_1 \hdots e_{11})_2 - m$ as $(f_1 \hdots f_{11})_2$ and repres
 Let $y = (f_1 \hdots f_{11})_2-1023$. We present slightly different rounding algorithms based on the value of $y$. Note that we abuse notation a bit below; the repeating element notation $\bar{0}$ means to repeat the element (in this case, 0) until the rest of the larger section has been filled. For example, if the mantissa is 52 bits, then $101\bar{0}$ represents $101$ followed by 49 trailing zeros. \newline
 
 \textbf{Case 1: $y \geq 52$} \newline
-If $y \geq 52$, then we know that only integers are representable at this scale, so there is no need to round.\footnote{See \href{https://www.exploringbinary.com/the-spacing-of-binary-floating-point-numbers/}{here} for an explanation.} \newline
+If $y \geq 52$, then we know that only integers are able to be represented at this scale, so there is no need to round.\footnote{See \href{https://www.exploringbinary.com/the-spacing-of-binary-floating-point-numbers/}{here} for an explanation.} \newline
 
 \textbf{Case 2: $y \in \{0, 1, \hdots, 51\}$} \newline
 We can think of multiplying by $2^y$ as shifting the radix point to the right $y$ times. We can then write
@@ -139,7 +139,7 @@ This is not really sufficient for to be usable in a system that might require bu
              \epsilon &= \epsilon'(1 + 12B\eta) + 2\eta \nonumber \\
     \implies \epsilon' &= \frac{\epsilon - 2\eta}{1 + 12B \eta} \nonumber
 \end{align}
-This $\epsilon'$ is what will be used in the parameterization in the Laplace within the Snapping Mechanism. Thus, we need $\epsilon' > 0$, or $\epsilon > 2\eta$, where $\eta = 2^{-p}$, and $p$ is our floating point precision. This simplifies to $\epsilon > 2^{-p+1}$. Assuming we want minimum sufficient precision, we can find the smallest power of two $\geq \epsilon$, call it $2^{-m}$, and let $p = m+2$. For setting our mechanism-level precision, we use the larger of the $p$ we just found or the level necessary to perform exact rounding on the logithm as described earlier (which we currently believe to be 118).
+This $\epsilon'$ is what will be used in the parameterization in the Laplace within the Snapping Mechanism. Thus, we need $\epsilon' > 0$, or $\epsilon > 2\eta$, where $\eta = 2^{-p}$, and $p$ is our floating point precision. This simplifies to $\epsilon > 2^{-p+1}$. Assuming we want minimum sufficient precision, we can find the smallest power of two $\geq \epsilon$, call it $2^{-m}$, and let $p = m+2$. For setting our mechanism-level precision, we use the larger of the $p$ we just found or the level necessary to perform exact rounding on the logarithm as described earlier (which we currently believe to be 118).
 
 \section{Utility}
 As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. \newline
