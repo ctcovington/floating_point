@@ -5,5 +5,8 @@ snapping_mechanism/implementation/data
 **/*.fls
 **/*.log
 **/*.out
+**/*.nav
+**/*.snm
+**/*.toc
 **/*.synctex.gz
 **/__pycache__/
