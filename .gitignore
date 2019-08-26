@@ -8,5 +8,7 @@ snapping_mechanism/implementation/data
 **/*.nav
 **/*.snm
 **/*.toc
+**/*.bbl
+**/*.blg
 **/*.synctex.gz
 **/__pycache__/
