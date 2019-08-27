@@ -1,0 +1,168 @@
+\documentclass{beamer}
+
+\usetheme{metropolis}
+\setbeamertemplate{bibliography item}{\insertbiblabel}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\DeclareMathOperator\supp{supp}
+
+%Information to be included in the title page:
+\title{Snapping Mechanism and Problems of Finite Precision}
+\author{Christian Covington}
+\institute{Harvard University Privacy Tools Project}
+\date{September 30, 2019}
+
+\begin{document}
+
+% Title Page
+\frame{\titlepage}
+
+% Table of Contents
+\begin{frame}
+    \frametitle{Overview}
+    \tableofcontents
+\end{frame}
+
+% Problem Statement
+\section{Problem Statement}
+
+\begin{frame}
+    \frametitle{What is Differential Privacy and how do we achieve it?}
+    Let $M : \mathcal{X}^{n} \rightarrow \mathcal{R}$ be a randomized algorithm, $D$ and $D'$ be neighboring datasets (differing in one row), and $S \subseteq \mathcal{R}$. Then $M$ satisfies $(\epsilon, 0)$ differential privacy if
+    \[ \mathbb{P}(M(D) \in S) \leq \exp(\epsilon) \cdot \mathbb{P}(M(D') \in S) \hspace{5pt} \cite{DMNS2006} \]
+
+    One way to construct such a randomized algorithm is to add noise to the function we want to compute. We will focus on the Laplace Mechanism, which satisfies $(\epsilon, 0)$ differential privacy:
+    \[ M_{Lap}(\mathcal{D}, f, \epsilon) = f(\mathcal{D}) + Lap \left(\frac{\Delta f}{\epsilon} \right) \hspace{5pt} \cite{DMNS2006} \]
+    where $f: \mathcal{D} \rightarrow \mathbb{R}$.
+
+    For $(\epsilon, 0)$-DP, it is necessary (but not sufficient) that $\supp\left( M_{Lap}(D, f, \epsilon) \right) = \supp\left( M_{Lap}(D', f, \epsilon) \right)$.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Moving from Theory to Practice}
+    Let $N$ be a stand-in for any type of noise we might want to add to produce a randomized algorithm. When $\supp(N) = \mathbb{R}$, the supports of mechanism outputs on neighboring datasets are equivalent. This is not necessarily true when $\supp(N) \neq \mathbb{R}$.\footnote{E.g. let $f(D) = 0, f(D) = \frac{1}{2}$, and $\supp(N) = \mathbb{Z}$.}
+
+    Any software implementation of DP algorithms with necessarily have only finite precision, so $\supp(N) \neq \mathbb{R}$.
+    In the interest of concreteness, we will consider the IEEE-754 double-precision (binary64) floating point format.
+\end{frame}
+
+% Floating Point
+\section{IEEE 754 Floating Point}
+\begin{frame}
+    \frametitle{IEEE 754 Floating Point}
+    The IEEE 754 standard (referred to as \emph{double} or \emph{binary64}) floating point number has 3 components: \newline
+    sign: 1 bit \newline
+    significand/mantissa: 53 bits (only 52 are explicitly stored) \newline
+    exponent: 11 bits
+
+    Let $S$ be the sign bit, $m_{1} \hdots m_{52}$ be the bits of the mantissa, and $e_{1} \hdots e_{11}$ be the bits of the exponent. Then a double is represented as
+\[ (-1)^S (1.m_{1} \hdots m_{52})_{2} \times 2^{(e_1 \hdots e_{11})_2 - 1023} \]
+    Note that doubles ($\mathbb{D}$) are not uniformly distributed over their range, so arithmetic precision is not constant across $\mathbb{D}$.
+\end{frame}
+
+% Laplace Mechanism
+\section{Issues with implementing the Laplace Mechanism}
+\begin{frame}
+    \frametitle{Generating the Laplace: Overview}
+    The most common method of generating Laplace noise is to use inverse transform sampling. Let $Y$ be the random variable representing our Laplace noise with scale parameter $\lambda$. Then,
+    \[ Y \leftarrow F^{-1}(U) = -\lambda ln (1-U) \]
+    where $F^{-1}$ is the inverse cdf of the Laplace and $U \sim Unif(0,1)$. \newline
+\end{frame}
+
+\begin{frame}
+    \frametitle{Sampling from Uniform}
+    Sampling from $\mathbb{D} \cap (0,1)$ is not particularly well-defined or consistent across implementations. Typically, the output of a uniform random sample is confined to a small subset of possible elements of $\mathbb{D}$. \cite{Mir2012}  
+    \begin{figure}
+        \includegraphics[height=0.5\textheight, width=0.8\textwidth]{support_of_random_doubles.png}
+        \caption{Uniform random number generation \cite{Mir2012}}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Natural Logarithm}
+    When implemented on uniform random numbers as normally generated, the natural log produces some values repeatedly and skips over others entirely. \cite{Mir2012} 
+    \begin{figure}        
+        \includegraphics[height=0.3\textheight, width=0.475\textwidth]{fp_fig_one.png}
+        \hfill
+        \includegraphics[height=0.3\textheight, width=0.475\textwidth]{fp_fig_two.png}
+        \caption{Artefacts of natural logarithm on $\mathbb{D}$ \cite{Mir2012}}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Attack}
+    Imagine we want to release a private version of the output of a function $f$ with $\Delta f = 1$ and $\epsilon = \frac{1}{3}$. 
+    Let $f(D) = 0, f(D') = 1$. 
+    \begin{figure}
+        \includegraphics[height=0.375\textheight, width=0.475\textwidth]{laplace_attack.png}
+        \hfill
+        \includegraphics[height=0.375\textheight, width=0.475\textwidth]{smoking_gun_probability.png}
+        \caption{Attack on Laplace Mechanism \cite{Mir2012}}
+    \end{figure} 
+\end{frame}
+
+\section{Inadequate Fixes}
+\begin{frame}
+    \frametitle{Rounding Noise}
+    Gaps happen at very fine precision, so can we round the noise to be less precise? Consider rounding noise to the nearest integer multiple of $2^{-32}$. 
+    Then, if $\vert f(D) - f(D') \vert < 2^{-32}$, then the supports of the mechanism outputs under the two data sets are completely disjoint.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Smoothing Noise}
+    Can we smooth the noise and ensure that all possible doubles are in the support of the mechanism? Imagine $f(D) = 0, f(D') = 1$ and we are adding $Lap(1)$ noise, with $y$ a sample from $Lap(1)$. Consider the case when our mechanism output $x \in (0, \frac{1}{2})$. \newline
+
+    If the private data set is $D$, then $x = f(D) \oplus y$ will have unit of least precision (ulp) $< 2^{-53}$ because $y \in (0, \frac{1}{2})$. 
+    If the private data set is $D'$, then $x = f(D') \oplus y$ will have ulp $= 2^{-53}$ because $y \in (-1, -\frac{1}{2})$. \newline
+
+    So, conditional on $x \in (0, \frac{1}{2})$, the support of $f(D') + y$ is a proper subset of the support of $f(D) + y$. \newline
+\end{frame}
+
+% Snapping Mechanism
+\section{Snapping Mechanism}
+\begin{frame}
+    \frametitle{Generating Uniform Random Numbers}
+    Our goal is to sample from $\mathbb{D} \cap (0,1)$ while maintaining the properties of $\mathbb{R}$ as closely as possible. \newline
+
+    IEEE 754 floating point numbers are of the form
+    \[ (-1)^S (1.m_{1} \hdots m_{52})_{2} \times 2^{-E} \]
+    Let $S = 0$, $E \sim Geom(0.5)$, and $m_1, \hdots, m_{52} \sim Bern(0.5)$. This means that every $d \in \mathbb{D} \cap (0,1)$ has a chance of being represented, and are represented proportional to their unit of least precision.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Mechanism Statement}
+    The Snapping Mechanism \cite{Mir2012} is defined as follows:
+    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor clamp_{B}(f(D)) \oplus S \otimes \lambda \otimes LN(U^*) \rceil_{\Lambda} \right) \]   
+    where $clamp_{B}$ restricts output to the range $[-B, B]$, $S \otimes \lambda \otimes LN(U^*)$ is Laplace noise generated with our improved random number generator, and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest $\Lambda$, where $\Lambda$ is the smallest power of two at least as large as $\lambda$.
+    
+The mechanism guarantees $\left(\frac{1 + 12B \eta + 2\eta\lambda}{\lambda}, 0\right)$-DP, where $\eta$ is machine epsilon.
+\end{frame}
+
+\section{Implementation Considerations}
+\begin{frame}
+    \frametitle{Why the lack of implementation?}
+    Not actually sure, but probably some combination of:
+    \begin{itemize}
+        \item No utility/error bounds in the paper
+        \item Not immediately clear how to properly implement suggested uniform random number generation
+        \item Technical differences from other mechanisms
+            \begin{itemize}
+                \item Privacy guarantee is a function of $\epsilon$
+                \item Non-private function estimate is an input to the mechanism
+            \end{itemize}
+        \item Generally seen as low-order concern
+    \end{itemize}
+\end{frame}
+
+%TODO: Consider including details on implementation of $\lfloor \cdot \rceil_{\Lambda}$
+
+\begin{frame}[allowframebreaks]
+    \frametitle{References}
+    \bibliographystyle{alpha}
+    \bibliography{presentation.bib}
+\end{frame}
+
+\end{document}
