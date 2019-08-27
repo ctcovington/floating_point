@@ -1,5 +1,6 @@
 papers
 snapping_mechanism/implementation/data
+snapping_mechanism/reading_group_presentation/*.png
 **/*.aux
 **/*.fdb_*
 **/*.fls
