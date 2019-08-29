@@ -31,11 +31,12 @@ The implementation of the snapping mechanism utilizes a number of ideas describe
 Below we present the mechanisms as if they are operating on the set 64-bit floating point numbers, $\mathbb{D}$, rather than $\mathbb{R}$. We will use $\oplus$ and $\otimes$ to represent the floating-point implementations of addition and multiplication, respectively.
 
 \subsection{Laplace Mechanism}
-Let $f$ be a function computed on a data set $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$ the Laplace Mechanism is defined as:
+Let $f$ be a function computed on a data set $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$. Then the Laplace Mechanism is defined as:
 \[ M_{L}(D, f(\cdot), \lambda) = f(D) \oplus Y \]
 where $Y \sim Laplace(\lambda)$.
 
 \subsection{Snapping Mechanism}
+\label{subsec:snapping}
 Let $B$ be a user-chosen quantity that reflects beliefs about reasonable bounds on $f(D)$ and $\Lambda$ be the smallest power of two at least as large as $\lambda$. Using the same notation as above, the snapping mechanism is defined as:
 \[ M_{S}(D, f(\cdot), \lambda, B) = clamp_{B}\left( \lfloor clamp_{B}\left( f(D) \right) \oplus Y \rceil_{\Lambda} \right). \]
 where $clamp_{B}(\cdot)$ restricts output to the interval $[-B, B]$ and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest multiple of $\Lambda$, with ties resolved toward $+ \infty$.
@@ -43,7 +44,7 @@ where $clamp_{B}(\cdot)$ restricts output to the interval $[-B, B]$ and $\lfloor
 \section{Sampling from the Laplace}
 Mironov presents the Laplace noise as
 \[ S \otimes \lambda \otimes LN(U^*) \]
-where $S$ is a uniform draw over $\{\pm 1\}$, $\lambda = \frac{\Delta_f}{\epsilon}$, $LN(\cdot)$ is the floating-point implementation of the natural logarithm with exact rounding, and $U^*$ is the uniform distribution over $\mathbb{D} \cap (0,1)$\footnote{the set of doubles $\in (0,1)$} such that each double is output with proportion relative to its \href{https://en.wikipedia.org/wiki/Unit_in_the_last_place}{unit of least precision}. $\oplus$ and $\otimes$ are the floating-point implementations of addition and multiplication, respectively. \newline
+where $S$ is a uniform draw over $\{\pm 1\}$, $\lambda = \frac{\Delta_f}{\epsilon}$, $LN(\cdot)$ is the floating-point implementation of the natural logarithm with exact rounding, and $U^*$ is the uniform distribution over $\mathbb{D} \cap (0,1)$ such that each double is output with proportion relative to its \href{https://en.wikipedia.org/wiki/Unit_in_the_last_place}{unit of least precision}. $\oplus$ and $\otimes$ are the floating-point implementations of addition and multiplication, respectively. \newline
 
 Drawing $S$ should be done with whichever source of randomness we end up wanting to use. The current Python implementation uses system-level randomness by utilizing an instance of the \textbf{random.SystemRandom} class. \newline
 
@@ -57,7 +58,7 @@ Many mathematical libraries do what is called \textit{accurate-faithful} roundin
 Finally, we can choose to perform $\oplus$ and $\otimes$ with greater than normal precision if we so choose. For now, we are using the same 118 bits of precision for all the basic floating-point operations, using the assumption that exact rounding of basic arithmetic operations should require less precision than calculating the log. This should probably be made more rigorous at some point.
 
 \section{Implementation of $\lfloor \cdot \rceil_{\Lambda}$}
-The $\lfloor \cdot \rceil_{\Lambda}$ function takes an input an rounds it to the nearest multiple of $\Lambda$, where $\Lambda$ is the smallest power of two greater than or equal to $\lambda$. There are multiple steps to this implementation that are worth explaining.
+The $\lfloor \cdot \rceil_{\Lambda}$ function takes an input and rounds it to the nearest multiple of $\Lambda$, where $\Lambda$ is the smallest power of two greater than or equal to $\lambda$. There are multiple steps to this implementation that are worth explaining.
 
 \subsection{Finding $\Lambda$}
 The algorithm receives $\lambda$ as input, but must find $\Lambda$ itself. First, represent $\lambda$ in its \href{https://en.wikipedia.org/wiki/Double-precision_floating-point_format}{IEEE-754 64-bit floating-point format}:
@@ -132,9 +133,9 @@ Mironov states in the last line of the privacy proof that the snapping mechanism
 where $B$ is the clamping bound and $\eta$ is the machine-$\epsilon$.\footnote{This is a relatively minor point, but I have normally seen machine-$\epsilon$ defined as the smallest value $\epsilon$ such that $1 \oplus \epsilon \neq 1$. Mironov defines it as the largest $\epsilon$ such that $1 \oplus \epsilon = 1$.} We will take $\eta$ to be our floating-point precision, rather than a value that is machine-imposed, which allows us to use high-precision libraries to get smaller values of $\eta$.
 Because we have rescaled our function to $\Delta f = 1$, we have $\delta = \frac{1}{\epsilon'}$ and this is equivalent to
 \[ \big( \epsilon'(1 + 12B\eta) + 2\eta \big)\text{-DP}. \]
-For ease of notation, we will call this $\epsilon$-DP and I believe it can be thought of as the privacy level relative to the Laplace. That is, if you were to get $\epsilon'$-DP from the Laplace Mechanism, you would get $\epsilon$-DP from the Snapping Mechanism. Put another way, you get $\epsilon$-DP from the Snapping Mechanism when you use $\epsilon'$ to parameterize the Laplace noise that is embedded within the Snapping Mechanism. \newline
+For ease of notation, we will call this $\epsilon$-DP and it can be thought of as the privacy level relative to the Laplace. That is, if you were to get $\epsilon'$-DP from the Laplace Mechanism, you would get $\epsilon$-DP from the Snapping Mechanism. Put another way, you get $\epsilon$-DP from the Snapping Mechanism when you use $\epsilon'$ to parameterize the Laplace noise that is embedded within the Snapping Mechanism. \newline
 
-This is not really sufficient for to be usable in a system that might require budgeting of a privacy budget, as you cannot (as written above) simply set a privacy allocation for the Snapping Mechanism, as it relies on $B$ and $\eta$. So rather than returning $\epsilon$ as a function of $\epsilon'$, we should do the reverse.
+This is not really sufficient to be usable in a system that might require budgeting of a privacy budget, as you cannot (as written above) simply set a privacy allocation for the Snapping Mechanism, as it relies on $B$ and $\eta$. So rather than returning $\epsilon$ as a function of $\epsilon'$, we should do the reverse.
 \begin{align}
              \epsilon &= \epsilon'(1 + 12B\eta) + 2\eta \nonumber \\
     \implies \epsilon' &= \frac{\epsilon - 2\eta}{1 + 12B \eta} \nonumber
@@ -171,20 +172,18 @@ We can examine these cases further. Let $F_{Y'}$ be the CDF of $Y' \sim Laplace(
 
 Then:
 \begin{align}
-	               &\mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \leq -B \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
-	= \hspace{5pt} &F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \leq -B \big) \nonumber \\
+	&= \hspace{5pt} \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
+	&= \hspace{5pt} \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
+	&= \hspace{5pt} F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
 \end{align}
 
 \begin{align}
-	               &\mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \geq B \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda}{2} \big) \nonumber \\
-	= \hspace{5pt} &\mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	= \hspace{5pt} &1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	= \hspace{5pt} &1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \geq B \big) \nonumber \\
+	&= \hspace{5pt} \mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda}{2} \big) \nonumber \\
+	&= \hspace{5pt} \mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
+	&= \hspace{5pt} 1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
+	&= \hspace{5pt} 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big) \nonumber
 \end{align}
 
 Recall from the triangle inequality that $\vert x-z \vert \leq \vert x-y \vert + \vert y-z \vert$. Then we have
@@ -196,7 +195,8 @@ Recall from the triangle inequality that $\vert x-z \vert \leq \vert x-y \vert +
 \end{align}
 It is important to note that this $Y'$ is associated with the Laplace noise inside the snapping mechanism which uses the redefined $\epsilon'$, rather than the user's desired $\epsilon$. So, we need to do a bit more work in order to compare the error of the Snapping Mechanism to that of the Laplace Mechanism. \newline
 
-Let $Y \sim Laplace(\lambda)$, where $\lambda = \frac{1}{\epsilon}$, be the distribution of noise generated by the Laplace Mechanism. We showed earlier that we can represent the distribution of Laplace noise as $S \otimes \lambda \otimes LN(U^*)$. So, we have
+Let $Y \sim Laplace(\lambda)$, where $\lambda = \frac{1}{\epsilon}$, be the distribution of noise generated by the Laplace Mechanism.
+We showed in \autoref{subsec:snapping} that we can represent the distribution of Laplace noise as $S \otimes \lambda \otimes LN(U^*)$. So, we have
 \[ Y \sim S \otimes \frac{1}{\epsilon} \otimes LN(U^*) \]
 \[ Y' \sim S \otimes \frac{1 + 12B\eta}{\epsilon - 2\eta} \otimes LN(U^*) \]
 and thus,
@@ -215,11 +215,11 @@ So we can rewrite $\eqref{snapped_noise}$ as
 Note that $N$ is always $\leq B + f(D)$.
 
 \subsection{Accuracy}
-We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model $\Lambda$ exactly, so we will instead try to represent $a$ such that $\mathbb{P}(N > a) \leq \alpha$. \newline
+We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model $\Lambda$ exactly, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
 
 Recall that $N \leq B + f(D)$. If we can get an upper bound on $P_{L} = \mathbb{P}(N = B + f(D))$, then we can start concerning ourselves only with the second two lines of $\eqref{snapped_noise_rewrite}$, which we will call $N_{sub}$. \newline
 
-Let's attempt to get an upper bound on $\mathbb{P}(N = B + f(D))$ and $\mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda}{2} < \lambda'$.
+Let's attempt to get bounds on $\mathbb{P}(N = B + f(D))$ and $\mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda}{2} < \lambda'$.
 \begin{align}
 	P_{L} &= \mathbb{P}(N = B + f(D)) \nonumber \\
 		  &= F_{Y'}(-B - f(D) + \frac{\Lambda}{2}) \nonumber \\
@@ -229,29 +229,109 @@ Let's attempt to get an upper bound on $\mathbb{P}(N = B + f(D))$ and $\mathbb{P
 \begin{align}
 	P_{U} &= \mathbb{P}(N = B - f(D)) \nonumber \\
 		  &= 1 - F_{Y'}(B - f(D) - \frac{\Lambda}{2}) \nonumber \\
-		  &\leq 1 - F_{Y'}(B - f(D) - \frac{\lambda'}{2}) \nonumber \\
-		  &= P_{U}^{+} \nonumber
+		  &\geq 1 - F_{Y'}(B - f(D) - \lambda') \nonumber \\
+		  &= P_{U}^{-} \nonumber
 \end{align}
-Because we know that $N \leq P_L < P_{L}^{+}$, we can reframe our original goal. We wanted to find $a$ such that $\alpha \geq \mathbb{P}(N > a)$, but this is equivalent to finding $a$ such that
-\[ \alpha - P_{L}^{+} \geq \mathbb{P}(N_{sub} > a) \]
+Because we know that $N \leq P_L < P_{L}^{+}$, we can reframe our original goal. We wanted to find the smallest $x$ such that $\alpha \geq \mathbb{P}(N > x)$, but this is equivalent to finding the smallest $x$ such that
+\[ \alpha - P_{L}^{+} \geq \mathbb{P}(N_{sub} > x) \]
 which we further reinterpret as
-\[ \alpha - P_{L}^{+} \geq 1 - \mathbb{P}(N_{sub} \leq a) = 1 - F_{N_{sub}}(a). \]
+\[ \alpha - P_{L}^{+} \geq 1 - \mathbb{P}(N_{sub} \leq x) = 1 - F_{N_{sub}}(x). \]
 Consider $N_{sub}$; we know that
 \[ Y' \sim Laplace (\lambda') \]
 with $\lambda' = \frac{1}{\epsilon'} = \frac{1 + 12B \eta}{\epsilon - 2 \eta}$, which implies that
 \[ \vert Y' \vert \sim Exponential(\epsilon') \]
-We now examine the CDF of $Z = \vert Y' \vert + \frac{\Lambda}{2}$, which we will call $F_{Z}$:
+We now construct upper and lower bounds on the CDF of $Z = \vert Y' \vert + \frac{\Lambda}{2}$, which we will call $F_{Z}$:
 \begin{align}
 	F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
 			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda}{2} \leq z \right) \nonumber \\
 			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda}{2} \right) \nonumber \\
 			 &\leq \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\lambda'}{2} \right) \nonumber \\
 			 &= 1 - \exp\left( -\epsilon'(z - \frac{\lambda'}{2}) \right) \nonumber \\
-			 &= 1 - \exp\left( -\epsilon'z + \frac{1}{2}. \right) \nonumber
+			 &= 1 - \exp\left( -\epsilon'z + \frac{1}{2} \right) \nonumber \\
+			 &= F_{Z}^{+}(z) \nonumber
 \end{align}
-Let the PDF of $Z$ be $f_Z$, $m = \max\left(B-f(D),a\right)$, and $n = \min\left(B+f(D),a\right)$.  Then we have:
 \begin{align}
-	F_{N_{sub}}(a) &= \int_{0}^{m} f_{Z}(z)dz + P_{U} \mathbbm{1}\left(a \geq B - f(D)\right) + \int_{B - f(D)}^{n} f_{Z}(z)dz \nonumber \\
-				   &= F_{Z}(m) + P_{U} \mathbbm{1}(m = a) + F_{Z}(n) - F_{Z}(B - f(D)) \nonumber
+	F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
+			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda}{2} \leq z \right) \nonumber \\
+			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda}{2} \right) \nonumber \\
+			 &> \mathbb{P} \left( \vert Y' \vert \leq z - \lambda' \right) \nonumber \\
+			 &= 1 - \exp\left( -\epsilon'(z - \lambda') \right) \nonumber \\
+			 &= 1 - \exp\left( -\epsilon'z + 1 \right) \nonumber \\
+			 &= F_{Z}^{-}(z) \nonumber
 \end{align}
+
+Let $f_Z$ be the PDF of $Z$, $m = \min\left(B-f(D),x\right)$, and $n = \min\left(B+f(D),x\right)$.  Then we have:
+\begin{align}
+	F_{N_{sub}}(x) &= \int_{0}^{m} f_{Z}(z)dz + \left( P_{U} + \int_{B - f(D)}^{n} f_{Z}(z)dz \right) \cdot \mathbbm{1}\left(x \geq B - f(D)\right) \nonumber \\
+				   &= F_{Z}(m) + \left( P_{U}  + F_{Z}(n) - F_{Z}(B - f(D)) \right) \cdot \mathbbm{1}\left( x \geq B - f(D) \right)   \nonumber \\
+				   &\geq F_{Z}^{-}(m) + \left( P_{U}^{-} + F_{Z}^{-}(n) - F_{Z}^{+}(B - f(D) \right) \cdot \mathbbm{1}\left(x \geq B - f(D)\right) \nonumber \\
+				   &= F_{N_{sub}}^{-}(x) \nonumber
+\end{align}
+Now that we have $F_{N_{sub}}^{-}(x)$ as a lower bound on $F_{N_{sub}}(x)$, we know that
+$1 - F_{N_{sub}}^{-}(x)$ is an upper bound on $1 - F_{N_{sub}}(x)$.
+So, our objective is now to find the minimum $x$ such that $1 - F_{N_{sub}}^{-}(x) = \alpha - P_{L}^{+}$.
+We rewrite this condition as $F_{N_{sub}}^{-}(x) = 1 + P_{L}^{+} - \alpha$. \newline
+
+Observe that if for a given $x'$ we have
+$F_{Z}^{-}(x') \geq 1 + P_{L}^{+} - \alpha$, we know that
+\[ \exists x \leq x': x = 1 + P_{L}^{+} - \alpha \]
+We can find this $x$ by performing algebra on $F_{Z}^{-}(x)$, which yields the following algorithm:
+
+\begin{algorithm}
+	\caption{Finding Accuracy}
+	\begin{algorithmic}
+		\Function{GetAccuracy}{$f(D), B, \epsilon'$}
+			\If{$P_{L}^{+} \geq \alpha$}
+				\State\Return{B + f(D)}
+			\ElsIf{$F^{-}_{Z}(B - f(D)) \geq 1 + P_{L}^{+} - \alpha$}
+				\State\Return{$\frac{1 - \ln(\alpha - P_{L}^{+})}{\epsilon'}$}
+			\ElsIf{$F^{-}_{Z}(B - f(D)) + P_{U}^{-} \geq 1 + P_{L}^{+} - \alpha$}
+				\State\Return{B - f(D)}
+			\Else{}
+				\State\Return{$\frac{1 - \ln(\alpha - P_{L}^{+} + P_{U}^{-})}{\epsilon'}$}
+			\EndIf
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+Calculations/explanations of the return statements above can be found in Appendix $\autoref{appendix:accuracy}$.
+
+% Appendices
+\begin{appendices}
+	\section{Accuracy Calculations}
+	\label{appendix:accuracy}
+	We iterate over the possible cases for where our optimal $a$ could lie.
+	We consider the sections of the PDF of $N$ representing where the bounds bind (Cases 1 and 3) as special cases, and use our bounds on
+	$F_{Z}$ for the sections between the bounds.
+
+	\textbf{Case 1:} $P_{L}^{+} \geq \alpha$ \newline
+	$P_{L}^{+} \geq \alpha$ means that the largest bound ($B + f(D)$) on the noise binds with probability $\geq \alpha$.
+	So, we can make no tighter accuracy guarantee at the $\alpha$ level than bounding by the greatest possible noise $B + f(D)$. \newline
+
+	\textbf{Case 2:} Case 1 does not hold and $F^{-}_{Z}(B - f(D)) \geq 1 + P_{L}^{+} - \alpha$ \newline
+	We know $a = x \leq B - f(D): F_{Z}^{-}(x) = 1 + P_{L}^{+} - \alpha$.
+	\begin{align}
+	              	 F_{Z}^{-}(a) &= 1 + P_{L}^{+} - \alpha \nonumber \\
+		1 - \exp(-\epsilon'a + 1) &= 1 + P_{L}^{+} - \alpha \nonumber \\
+		           \epsilon'a + 1 &= \ln(\alpha - P_{L}^{+}) \nonumber \\
+		                        a &= \frac{1 - \ln(\alpha - P_{L}^{+})}{\epsilon'} \nonumber
+	\end{align}
+
+	\textbf{Case 3:} Case 1,2 do not hold and $F^{-}_{Z}(B - f(D)) + P_{U}^{-} \geq 1 + P_{L}^{+} - \alpha$ \newline
+	This is conceptually similar to Case 1, in the sense that the probability of a bound binding (in this case, the bound if $B - f(D)$) pushes us past our
+	$\alpha$ level. Similar to before, we can make an accuracy guarantee that corresponds to the binding bound, $B - f(D)$. \newline
+
+	\textbf{Case 4:} Case 1,2,3 do not hold \newline
+	We know $a =  x \in (B - f(D), B + f(D))$ such that
+	\[ F_{Z}^{-}(x) - F_{Z}^{-}(B - f(D)) = 1 + P_{L}^{+} - \alpha - F_{Z}^{-}(B - f(D)) - P_{U}^{-} \]
+	\begin{align}
+		F_{Z}^{-}(a) - F_{Z}^{-}(B - f(D)) &= 1 + P_{L}^{+} - \alpha - F_{Z}^{-}(B - f(D)) - P_{U}^{-} \nonumber \\
+							  F_{Z}^{-}(a) &= 1 + P_{L}^{+} - \alpha - P_{U}^{-} \nonumber \\
+				1 - \exp(-\epsilon' a + 1) &= 1 + P_{L}^{+} - \alpha - P_{U}^{-} \nonumber \\
+						  -\epsilon' a + 1 &= \ln(\alpha - P_{L}^{+} + P_{U}^{-}) \nonumber \\
+						                 a &= \frac{1 - \ln(\alpha - P_{L}^{+} + P_{U}^{-})}{\epsilon'} \nonumber
+	\end{align}
+
+
+\end{appendices}
+
 \end{document}
