@@ -280,7 +280,7 @@ We can find this $x$ by performing algebra on $F_{Z}^{-}(x)$, which yields the f
 \begin{algorithm}
 	\caption{Finding Accuracy}
 	\begin{algorithmic}
-		\Function{GetAccuracy}{$f(D), B, \epsilon'$}
+		\Function{GetAccuracy}{$f(D), B, P_{L}^{+}, P_{U}^{-}, \epsilon', \alpha$}
 			\If{$P_{L}^{+} \geq \alpha$}
 				\State\Return{B + f(D)}
 			\ElsIf{$F^{-}_{Z}(B - f(D)) \geq 1 + P_{L}^{+} - \alpha$}
