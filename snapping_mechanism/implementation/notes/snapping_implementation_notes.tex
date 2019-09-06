@@ -53,7 +53,7 @@ We get $U^*$ as Mironov suggests, by sampling our exponent from a geometric dist
 The unit of least precision is completely decided by the value of $e$, so the floating-point values within each unit of least precision are uniformly distributed. Drawing $e$ from the geometric ensures that the probability of drawing a value from a given band is equal to the size of the band. \newline
 
 $LN(\cdot)$ must be implemented with exact rounding, which we define below.\footnote{For all rounding, we assume that our goal is to round to the nearest number we are able to represent.} Consider that for an arbitrary $x \in \mathbb{D}$ the natural log of $x$ is not necessarily $\in \mathbb{D}$. Let $a < ln(x) < b$ where $a,b \in \mathbb{D}$ and $\not\exists c \in \mathbb{D}: a < c < b$. Without loss of generality, assume that $\vert a-x \vert < \vert b - x \vert$, so that if we had infinite precision in calculating $ln(x)$ (but still had to output an element $\in \mathbb{D}$), we would output $a$.
-Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. You can read more about exact rounding in section 1.1 \href{http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf}{here}. Section paper 2.1 of the paper just linked appeals to proofs from a set of papers that say you need 118 bits of precision, in the worst case, to calculate the logarithm with exact rounding. So, the current implementation calculates $LN(U^*)$ with at least 118 bits of precision.\footnote{We potentially use $> 118$ because of the $\epsilon$ redefinition described later.} \newline
+Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. You can read more about exact rounding in section 1.1 \href{http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf}{here}. Section 2.1 of the paper just linked appeals to proofs from a set of papers that say you need 118 bits of precision, in the worst case, to calculate the logarithm with exact rounding. So, the current implementation calculates $LN(U^*)$ with at least 118 bits of precision.\footnote{We potentially use $> 118$ because of the $\epsilon$ redefinition described later.} \newline
 
 Finally, we can choose to perform $\oplus$ and $\otimes$ with greater than normal precision if we so choose. For now, we are using the same 118 bits of precision for all the basic floating-point operations, using the assumption that exact rounding of basic arithmetic operations should require less precision than calculating the log. This should probably be made more rigorous at some point.
 
@@ -146,7 +146,7 @@ This $\epsilon'$ is what will be used in the parameterization in the Laplace wit
 \subsection{Error}
 As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. \newline
 
-One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This may not be true in full generality, but should be for the statistics for which the Laplace is currently used in PSI.} This gives the minimum possible $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a well-defined (and predictable) value or distribution. For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen. \newline
+One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a well-defined (and predictable) value or distribution. For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen. Further, we will also ensure that $B$ is a multiple of $\Lambda$.\footnote{Thanks to Ira for this suggestion.} At a later date, we may need to ensure only that $B$ is a multiple of $\frac{\Lambda}{2}$, but it was cleaner to assume it a multiple of $\Lambda$ for now. \newline
 
 Consider the following quantity:
 \[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda} \big) \big \vert \]
@@ -172,7 +172,7 @@ We can examine these cases further. Let $F_{Y'}$ be the CDF of $Y' \sim Laplace(
 
 Then:
 \begin{align}
-	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \leq -B \big) \nonumber \\
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} < -B \big) \nonumber \\
 	&= \hspace{5pt} \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
 	&= \hspace{5pt} \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
 	&= \hspace{5pt} F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
@@ -188,12 +188,11 @@ Then:
 
 Recall from the triangle inequality that $\vert x-z \vert \leq \vert x-y \vert + \vert y-z \vert$. Then we have
 \begin{align}
-	                  &\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber \\
-    \leq \hspace{3pt} &\big\vert f(D) - (f(D) + Y') \big\vert + \big\vert f(D) + Y' - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber \\
-       = \hspace{3pt} &\vert -Y' \vert + \frac{\Lambda}{2} \nonumber \\
-	   = \hspace{3pt} &\vert Y' \vert + \frac{\Lambda}{2} \nonumber
+\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber &\leq \big\vert f(D) - (f(D) + Y') \big\vert + \big\vert f(D) + Y' - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber \\
+                                                                        &\leq \vert -Y' \vert + \frac{\Lambda}{2} \nonumber \\
+	                                                                    &= \vert Y' \vert + \frac{\Lambda}{2} \nonumber
 \end{align}
-It is important to note that this $Y'$ is associated with the Laplace noise inside the snapping mechanism which uses the redefined $\epsilon'$, rather than the user's desired $\epsilon$. So, we need to do a bit more work in order to compare the error of the Snapping Mechanism to that of the Laplace Mechanism. \newline
+It is important to note that this $Y'$ is associated with the Laplace noise inside the snapping mechanism which uses the redefined $\epsilon'$, rather than the user's desired $\epsilon$. So, we need to do a bit more work in order to compare the error of the Snapping Mechanism to that we would get if we instead used a Laplace Mechanism with the same nominal privay guarantee. \newline
 
 Let $Y \sim Laplace(\lambda)$, where $\lambda = \frac{1}{\epsilon}$, be the distribution of noise generated by the Laplace Mechanism.
 We showed in \autoref{subsec:snapping} that we can represent the distribution of Laplace noise as $S \otimes \lambda \otimes LN(U^*)$. So, we have
@@ -215,11 +214,11 @@ So we can rewrite $\eqref{snapped_noise}$ as
 Note that $N$ is always $\leq B + f(D)$.
 
 \subsection{Accuracy}
-We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model $\Lambda$ exactly, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
+We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model the effects of $\lfloor \cdot \rceil_\Lambda$, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
 
 Recall that $N \leq B + f(D)$. If we can get an upper bound on $P_{L} = \mathbb{P}(N = B + f(D))$, then we can start concerning ourselves only with the second two lines of $\eqref{snapped_noise_rewrite}$, which we will call $N_{sub}$. \newline
 
-Let's attempt to get bounds on $\mathbb{P}(N = B + f(D))$ and $\mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda}{2} < \lambda'$.
+Let's attempt to get bounds on $P_{L} = \mathbb{P}(N = B + f(D))$ and $P_{U} = \mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda}{2} < \lambda'$.
 \begin{align}
 	P_{L} &= \mathbb{P}(N = B + f(D)) \nonumber \\
 		  &= F_{Y'}(-B - f(D) + \frac{\Lambda}{2}) \nonumber \\
@@ -232,14 +231,14 @@ Let's attempt to get bounds on $\mathbb{P}(N = B + f(D))$ and $\mathbb{P}(N = B 
 		  &\geq 1 - F_{Y'}(B - f(D) - \lambda') \nonumber \\
 		  &= P_{U}^{-} \nonumber
 \end{align}
-Because we know that $N \leq P_L < P_{L}^{+}$, we can reframe our original goal. We wanted to find the smallest $x$ such that $\alpha \geq \mathbb{P}(N > x)$, but this is equivalent to finding the smallest $x$ such that
+Because we know that $\mathbbm{P}(N=B+f(D)) \leq P_L < P_{L}^{+}$, we can reframe our original goal. We wanted to find the smallest $x$ such that $\alpha \geq \mathbb{P}(N > x)$, but this is equivalent to finding the smallest $x$ such that
 \[ \alpha - P_{L}^{+} \geq \mathbb{P}(N_{sub} > x) \]
 which we further reinterpret as
 \[ \alpha - P_{L}^{+} \geq 1 - \mathbb{P}(N_{sub} \leq x) = 1 - F_{N_{sub}}(x). \]
 Consider $N_{sub}$; we know that
 \[ Y' \sim Laplace (\lambda') \]
 with $\lambda' = \frac{1}{\epsilon'} = \frac{1 + 12B \eta}{\epsilon - 2 \eta}$, which implies that
-\[ \vert Y' \vert \sim Exponential(\epsilon') \]
+\[ \vert Y' \vert \sim Exponential(\epsilon'). \]
 We now construct upper and lower bounds on the CDF of $Z = \vert Y' \vert + \frac{\Lambda}{2}$, which we will call $F_{Z}$:
 \begin{align}
 	F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
