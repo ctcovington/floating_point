@@ -146,7 +146,12 @@ This $\epsilon'$ is what will be used in the parameterization in the Laplace wit
 \subsection{Error}
 As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. \newline
 
-One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a well-defined (and predictable) value or distribution. For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen. Further, we will also ensure that $B$ is a multiple of $\Lambda$.\footnote{Thanks to Ira for this suggestion.} At a later date, we may need to ensure only that $B$ is a multiple of $\frac{\Lambda}{2}$, but it was cleaner to assume it a multiple of $\Lambda$ for now. \newline
+One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a value or distribution we can reason about.
+For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
+% Further, we will also ensure that $B$ is a multiple of $\Lambda$.\footnote{Thanks to Ira for this suggestion.}
+% This is necessary for some of the analysis below to hold.
+% At a later date, we may need to ensure only that $B$ is a multiple of $\frac{\Lambda}{2}$,
+% but it was cleaner to assume it a multiple of $\Lambda$ for now. \newline
 
 Consider the following quantity:
 \[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda} \big) \big \vert \]
@@ -172,18 +177,18 @@ We can examine these cases further. Let $F_{Y'}$ be the CDF of $Y' \sim Laplace(
 
 Then:
 \begin{align}
-	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} < -B \big) \nonumber \\
-	&= \hspace{5pt} \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
-	&= \hspace{5pt} \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
-	&= \hspace{5pt} F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} < -B \big) \nonumber \\
+	&\leq \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
+	&= \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
+	&= F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
 \end{align}
 
 \begin{align}
-	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B \big) \nonumber &= \hspace{5pt} \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \geq B \big) \nonumber \\
-	&= \hspace{5pt} \mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda}{2} \big) \nonumber \\
-	&= \hspace{5pt} \mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	&= \hspace{5pt} 1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	&= \hspace{5pt} 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \geq B \big) \nonumber \\
+	&\leq \mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda}{2} \big) \nonumber \\
+	&= \mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
+	&= 1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
+	&= 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big) \nonumber
 \end{align}
 
 Recall from the triangle inequality that $\vert x-z \vert \leq \vert x-y \vert + \vert y-z \vert$. Then we have
@@ -206,8 +211,8 @@ So we can rewrite $\eqref{snapped_noise}$ as
 	\label{snapped_noise_rewrite}
 	N
 		\begin{cases}
-			= B + f(D), &\text{ with probability } F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big)  \\
-			= B - f(D), &\text{ with probability } 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big)  \\
+			= B + f(D), &\text{ with probability } \leq F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big)  \\
+			= B - f(D), &\text{ with probability } \leq 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big)  \\
 			\leq \vert Y' \vert + \frac{\Lambda}{2}, &\text{ otherwise }
 		\end{cases}
 \end{equation}
