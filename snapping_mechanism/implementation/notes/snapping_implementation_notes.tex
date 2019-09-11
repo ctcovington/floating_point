@@ -148,10 +148,6 @@ As originally written, it is difficult to reason about error/utility of the Snap
 
 One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a value or distribution we can reason about.
 For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
-% Further, we will also ensure that $B$ is a multiple of $\Lambda$.\footnote{Thanks to Ira for this suggestion.}
-% This is necessary for some of the analysis below to hold.
-% At a later date, we may need to ensure only that $B$ is a multiple of $\frac{\Lambda}{2}$,
-% but it was cleaner to assume it a multiple of $\Lambda$ for now. \newline
 
 Consider the following quantity:
 \[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda} \big) \big \vert \]
@@ -282,7 +278,8 @@ $F_{Z}^{-}(x') \geq 1 + P_{L}^{+} - \alpha$, we know that
 We can find this $x$ by performing algebra on $F_{Z}^{-}(x)$, which yields the following algorithm:
 
 \begin{algorithm}
-	\caption{Finding Accuracy}
+	% \caption{findingAccuracy1}
+	\label{GetAccuracy}
 	\begin{algorithmic}
 		\Function{GetAccuracy}{$f(D), B, P_{L}^{+}, P_{U}^{-}, \epsilon', \alpha$}
 			\If{$P_{L}^{+} \geq \alpha$}
@@ -297,7 +294,23 @@ We can find this $x$ by performing algebra on $F_{Z}^{-}(x)$, which yields the f
 		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
-Calculations/explanations of the return statements above can be found in Appendix $\autoref{appendix:accuracy}$.
+Calculations/explanations of the return statements above can be found in Appendix $\autoref{appendix:accuracy}$. \newline
+
+There are some complications with \emph{GetAccuracy}. \newline
+
+First, it relies on $f(D)$ and thus is privacy-leaking. I have not yet figured out the privacy loss of releasing the accuracy,
+but we could work on this in the future. James suggested that we could potentially give simulated accuracy estimates
+for estimates of $f(D)$ provided by the user, thus removing the dependance on the real $f(D)$.
+I think that if we did this, we could likely not give a post-hoc accuracy guarantee
+(it would be too easy for a user to ask for an exhaustive list of accuracies for possible $f(D)$ and then back out the true
+$f(D)$ from the provided post-hoc accuracy guarantee). \newline
+
+Second (though related), the accuracy guarantee using the actual $f(D)$ cannot be done until the mechanism has been run,
+so the user cannot get a certain accuracy guarantee before running the algorithm in order to decide whether or
+not they want to spend some of their privacy budget on the statistic.
+
+% \subsection{More detail on choosing $B$}
+% Up until this point, we have simply assumed that we have some $B$ such that $B > f(D)$.
 
 % Appendices
 \begin{appendices}
