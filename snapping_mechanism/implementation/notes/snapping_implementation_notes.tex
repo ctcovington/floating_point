@@ -320,15 +320,16 @@ $\mathbbm{P}(Z \geq a) \leq \alpha$. We would like for $\alpha$ to be as small a
 $\alpha$ would satisfy our needs.
 
 \begin{align*}
-	\mathbbm{P}(Z \geq a) &= F_{Z}(a) \\
-						  &\leq F_{Z}^{+}(a) \\
-						  &= 1 - \exp(-\epsilon' a + \frac{1}{2}) \\
+	\mathbbm{P}(Z \geq a) &= 1 - F_{Z}(a) \\
+						  &\leq 1 - F_{Z}^{-}(a) \\
+						  &= 1 - (1 - \exp(-\epsilon' a + 1)) \\
+						  &= \exp(-\epsilon' a + 1)
 \end{align*}
 and so we have
-\[ \alpha = 1 - \exp(-\epsilon' a + \frac{1}{2}). \]
+\[ \alpha = \exp(-\epsilon' a + 1). \]
 We can rearrange and solve for $a$ to put this in the terms we were using earlier (finding a suitable accuracy $a$ for
 a given $\alpha$). That calculation yields
-\[ a = \frac{1/2 - \ln(1 - \alpha)}{\epsilon'}. \]
+\[ a = \frac{1 - \ln(\alpha)}{\epsilon'} = \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'}. \]
 
 The algorithm for getting accuracy is then as follows. Notice that we can clamp our accuracy guarantee to $2B$ if it
 exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, B]$.
@@ -336,7 +337,7 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 	\label{GetAccuracy2}
 	\begin{algorithmic}
 		\Function{GetAccuracy2}{$B, \epsilon', \alpha$}
-			\State $a = \frac{1/2 - \ln(1 - \alpha)}{\epsilon'}$
+			\State $a = \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'}$
 			\If{$a \geq 2B$}
 					\State\Return{2B}
 			\Else{}
@@ -345,6 +346,21 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
+
+The accuracy for the pure Laplace is given as $\frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon}$. Recalling that
+$\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can bound the multiplicative difference between the accuracy of the
+Snapping and Laplace as follows:
+% TODO: figure out how to bound in terms of a_{Laplace}
+\begin{align*}
+	a_{Snapping} &\leq \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'} \\
+			     &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\left( \frac{\epsilon - 2\eta}{1 + 12B\eta} \right)} \\
+			     &= \frac{(1 + 12B \eta) \left( 1 + \ln \left( \frac{1}{\alpha} \right) \right)}{\epsilon - 2\eta} \\
+				 &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon - 2\eta} \\
+				 &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon} \cdot \frac{\epsilon}{\epsilon - 2\eta} \\
+				 &= \frac{\epsilon(1 + 12B \eta)}{\left( \epsilon - 2\eta \right)^2} \cdot \left( \frac{1}{\epsilon} + \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon} \right) \\
+				 &= \frac{1 + 12B \eta}{\left( \epsilon - 2\eta \right)^2}
+				 + \frac{\epsilon(1 + 12B \eta)}{\left( \epsilon - 2\eta \right)^2} \cdot a_{Laplace}
+\end{align*}
 
 % \subsection{More detail on choosing $B$}
 % Up until this point, we have simply assumed that we have some $B$ such that $B > f(D)$.
