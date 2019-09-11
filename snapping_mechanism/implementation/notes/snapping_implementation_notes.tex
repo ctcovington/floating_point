@@ -144,7 +144,8 @@ This $\epsilon'$ is what will be used in the parameterization in the Laplace wit
 
 \section{Utility}
 \subsection{Error}
-As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. \newline
+As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. Furthermore, we consider the case in which $\Delta f = 1$.
+The accuracy/error calculations should be multiplied by $\Delta f$ for the case in which $\Delta f \neq 0$. \newline
 
 One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a value or distribution we can reason about.
 For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
@@ -301,13 +302,49 @@ There are some complications with \emph{GetAccuracy}. \newline
 First, it relies on $f(D)$ and thus is privacy-leaking. I have not yet figured out the privacy loss of releasing the accuracy,
 but we could work on this in the future. James suggested that we could potentially give simulated accuracy estimates
 for estimates of $f(D)$ provided by the user, thus removing the dependance on the real $f(D)$.
-I think that if we did this, we could likely not give a post-hoc accuracy guarantee
+I think that if we did this, we could not give a post-hoc accuracy guarantee using \emph{GetAccuracy}
 (it would be too easy for a user to ask for an exhaustive list of accuracies for possible $f(D)$ and then back out the true
 $f(D)$ from the provided post-hoc accuracy guarantee). \newline
 
 Second (though related), the accuracy guarantee using the actual $f(D)$ cannot be done until the mechanism has been run,
 so the user cannot get a certain accuracy guarantee before running the algorithm in order to decide whether or
-not they want to spend some of their privacy budget on the statistic.
+not they want to spend some of their privacy budget on the statistic. \newline
+
+We instead use a more conservative accuracy metric that will be independent of $D$.\footnote{Thanks to Victor Balcer for motivating
+this idea.} Note that, provided that $f(D) \in [-B, B]$ (as is guaranteed by our method for choosing $B$),
+the outer $clamp_B$ (after noise is added) can only help our accuracy. Thus, we can model the noise as always being upper bounded by
+$Z = \vert Y' \vert + \frac{\Lambda}{2}$ and ignore the cases in which the outer clamping binds bound. \newline
+
+Let's first consider the question of, for a given accuracy $a$, finding confidence $\alpha$ such that
+$\mathbbm{P}(Z \geq a) \leq \alpha$. We would like for $\alpha$ to be as small as possible, though any sufficiently large
+$\alpha$ would satisfy our needs.
+
+\begin{align*}
+	\mathbbm{P}(Z \geq a) &= F_{Z}(a) \\
+						  &\leq F_{Z}^{+}(a) \\
+						  &= 1 - \exp(-\epsilon' a + \frac{1}{2}) \\
+\end{align*}
+and so we have
+\[ \alpha = 1 - \exp(-\epsilon' a + \frac{1}{2}). \]
+We can rearrange and solve for $a$ to put this in the terms we were using earlier (finding a suitable accuracy $a$ for
+a given $\alpha$). That calculation yields
+\[ a = \frac{1/2 - \ln(1 - \alpha)}{\epsilon'}. \]
+
+The algorithm for getting accuracy is then as follows. Notice that we can clamp our accuracy guarantee to $2B$ if it
+exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, B]$.
+\begin{algorithm}
+	\label{GetAccuracy2}
+	\begin{algorithmic}
+		\Function{GetAccuracy2}{$B, \epsilon', \alpha$}
+			\State $a = \frac{1/2 - \ln(1 - \alpha)}{\epsilon'}$
+			\If{$a \geq 2B$}
+					\State\Return{2B}
+			\Else{}
+				\State\Return{a}
+			\EndIf
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
 
 % \subsection{More detail on choosing $B$}
 % Up until this point, we have simply assumed that we have some $B$ such that $B > f(D)$.
