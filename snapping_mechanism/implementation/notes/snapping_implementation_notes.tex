@@ -151,15 +151,15 @@ One possibility is that, instead of the user choosing $B$, we set it for them wi
 For now, we will ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
 
 Consider the following quantity:
-\[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda} \big) \big \vert \]
+\[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda'} \big) \big \vert \]
 with $Y' \sim Laplace(\lambda')$ where $\lambda' = \frac{1}{e'} = \frac{1 + 12B \eta}{\epsilon - 2\eta}$. This is the amount of noise added to $f(D)$ by the snapping mechanism.\footnote{Note that we ignore the inner $clamp_B$ inside the Snapping Mechanism because we set $B \geq f(D)$.} We have then:
 \begin{equation}
 	N =
 		\label{snapped_noise}
 		\begin{cases}
-			B + f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B  \\
-			B - f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B  \\
-			\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert, &\text{ otherwise }
+			B + f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda'} \right) = -B  \\
+			B - f(D), &\text{ if } clamp_B \left( \lfloor f(D) + Y' \rceil_{\Lambda'} \right) = B  \\
+			\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda'} \big\vert, &\text{ otherwise }
 		\end{cases}
 \end{equation}
 
@@ -174,25 +174,25 @@ We can examine these cases further. Let $F_{Y'}$ be the CDF of $Y' \sim Laplace(
 
 Then:
 \begin{align}
-	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = -B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} < -B \big) \nonumber \\
-	&\leq \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda}{2} \big) \nonumber \\
-	&= \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda}{2} \big) \nonumber \\
-	&= F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda'} \right) = -B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda'} < -B \big) \nonumber \\
+	&\leq \mathbb{P} \big( f(D) + Y' < -B + \frac{\Lambda'}{2} \big) \nonumber \\
+	&= \mathbb{P} \big( Y' < -B - f(D) + \frac{\Lambda'}{2} \big) \nonumber \\
+	&= F_{Y'} \big( -B - f(D) + \frac{\Lambda'}{2} \big) \nonumber
 \end{align}
 
 \begin{align}
-	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda} \right) = B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda} \geq B \big) \nonumber \\
-	&\leq \mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda}{2} \big) \nonumber \\
-	&= \mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	&= 1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda}{2} \big) \nonumber \\
-	&= 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big) \nonumber
+	               \mathbb{P} \big( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda'} \right) = B \big) \nonumber &= \mathbb{P} \big( \lfloor f(D) + Y' \rceil_{\Lambda'} \geq B \big) \nonumber \\
+	&\leq \mathbb{P} \big( f(D) + Y' \geq B - \frac{\Lambda'}{2} \big) \nonumber \\
+	&= \mathbb{P} \big( Y' \geq B - f(D) - \frac{\Lambda'}{2} \big) \nonumber \\
+	&= 1 - \mathbb{P} \big( Y' < B - f(D) - \frac{\Lambda'}{2} \big) \nonumber \\
+	&= 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda'}{2} \big) \nonumber
 \end{align}
 
 Recall from the triangle inequality that $\vert x-z \vert \leq \vert x-y \vert + \vert y-z \vert$. Then we have
 \begin{align}
-\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber &\leq \big\vert f(D) - (f(D) + Y') \big\vert + \big\vert f(D) + Y' - \lfloor f(D) + Y' \rceil_{\Lambda} \big\vert \nonumber \\
-                                                                        &\leq \vert -Y' \vert + \frac{\Lambda}{2} \nonumber \\
-	                                                                    &= \vert Y' \vert + \frac{\Lambda}{2} \nonumber
+\big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda'} \big\vert \nonumber &\leq \big\vert f(D) - (f(D) + Y') \big\vert + \big\vert f(D) + Y' - \lfloor f(D) + Y' \rceil_{\Lambda'} \big\vert \nonumber \\
+                                                                        &\leq \vert -Y' \vert + \frac{\Lambda'}{2} \nonumber \\
+	                                                                    &= \vert Y' \vert + \frac{\Lambda'}{2} \nonumber
 \end{align}
 It is important to note that this $Y'$ is associated with the Laplace noise inside the snapping mechanism which uses the redefined $\epsilon'$, rather than the user's desired $\epsilon$. So, we need to do a bit more work in order to compare the error of the Snapping Mechanism to that we would get if we instead used a Laplace Mechanism with the same nominal privay guarantee. \newline
 
@@ -208,28 +208,28 @@ So we can rewrite $\eqref{snapped_noise}$ as
 	\label{snapped_noise_rewrite}
 	N
 		\begin{cases}
-			= B + f(D), &\text{ with probability } \leq F_{Y'} \big( -B - f(D) + \frac{\Lambda}{2} \big)  \\
-			= B - f(D), &\text{ with probability } \leq 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda}{2} \big)  \\
-			\leq \vert Y' \vert + \frac{\Lambda}{2}, &\text{ otherwise }
+			= B + f(D), &\text{ with probability } \leq F_{Y'} \big( -B - f(D) + \frac{\Lambda'}{2} \big)  \\
+			= B - f(D), &\text{ with probability } \leq 1 - F_{Y'} \big( B - f(D) - \frac{\Lambda'}{2} \big)  \\
+			\leq \vert Y' \vert + \frac{\Lambda'}{2}, &\text{ otherwise }
 		\end{cases}
 \end{equation}
 Note that $N$ is always $\leq B + f(D)$.
 
 \subsection{Accuracy}
-We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model the effects of $\lfloor \cdot \rceil_\Lambda$, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
+We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model the effects of $\lfloor \cdot \rceil_\Lambda'$, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
 
 Recall that $N \leq B + f(D)$. If we can get an upper bound on $P_{L} = \mathbb{P}(N = B + f(D))$, then we can start concerning ourselves only with the second two lines of $\eqref{snapped_noise_rewrite}$, which we will call $N_{sub}$. \newline
 
-Let's attempt to get bounds on $P_{L} = \mathbb{P}(N = B + f(D))$ and $P_{U} = \mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda}{2} < \lambda'$.
+Let's attempt to get bounds on $P_{L} = \mathbb{P}(N = B + f(D))$ and $P_{U} = \mathbb{P}(N = B - f(D))$ in terms of quantities we know. Remember that $\frac{\lambda'}{2} \leq \frac{\Lambda'}{2} < \lambda'$.
 \begin{align}
 	P_{L} &= \mathbb{P}(N = B + f(D)) \nonumber \\
-		  &= F_{Y'}(-B - f(D) + \frac{\Lambda}{2}) \nonumber \\
+		  &= F_{Y'}(-B - f(D) + \frac{\Lambda'}{2}) \nonumber \\
 		  &< F_{Y'}(-B - f(D) + \lambda') \nonumber \\
 		  &= P_{L}^{+} \nonumber
 \end{align}
 \begin{align}
 	P_{U} &= \mathbb{P}(N = B - f(D)) \nonumber \\
-		  &= 1 - F_{Y'}(B - f(D) - \frac{\Lambda}{2}) \nonumber \\
+		  &= 1 - F_{Y'}(B - f(D) - \frac{\Lambda'}{2}) \nonumber \\
 		  &\geq 1 - F_{Y'}(B - f(D) - \lambda') \nonumber \\
 		  &= P_{U}^{-} \nonumber
 \end{align}
@@ -241,11 +241,11 @@ Consider $N_{sub}$; we know that
 \[ Y' \sim Laplace (\lambda') \]
 with $\lambda' = \frac{1}{\epsilon'} = \frac{1 + 12B \eta}{\epsilon - 2 \eta}$, which implies that
 \[ \vert Y' \vert \sim Exponential(\epsilon'). \]
-We now construct upper and lower bounds on the CDF of $Z = \vert Y' \vert + \frac{\Lambda}{2}$, which we will call $F_{Z}$:
+We now construct upper and lower bounds on the CDF of $Z = \vert Y' \vert + \frac{\Lambda'}{2}$, which we will call $F_{Z}$:
 \begin{align}
 	F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
-			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda}{2} \leq z \right) \nonumber \\
-			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda}{2} \right) \nonumber \\
+			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda'}{2} \leq z \right) \nonumber \\
+			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda'}{2} \right) \nonumber \\
 			 &\leq \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\lambda'}{2} \right) \nonumber \\
 			 &= 1 - \exp\left( -\epsilon'(z - \frac{\lambda'}{2}) \right) \nonumber \\
 			 &= 1 - \exp\left( -\epsilon'z + \frac{1}{2} \right) \nonumber \\
@@ -253,8 +253,8 @@ We now construct upper and lower bounds on the CDF of $Z = \vert Y' \vert + \fra
 \end{align}
 \begin{align}
 	F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
-			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda}{2} \leq z \right) \nonumber \\
-			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda}{2} \right) \nonumber \\
+			 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda'}{2} \leq z \right) \nonumber \\
+			 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda'}{2} \right) \nonumber \\
 			 &> \mathbb{P} \left( \vert Y' \vert \leq z - \lambda' \right) \nonumber \\
 			 &= 1 - \exp\left( -\epsilon'(z - \lambda') \right) \nonumber \\
 			 &= 1 - \exp\left( -\epsilon'z + 1 \right) \nonumber \\
@@ -279,7 +279,6 @@ $F_{Z}^{-}(x') \geq 1 + P_{L}^{+} - \alpha$, we know that
 We can find this $x$ by performing algebra on $F_{Z}^{-}(x)$, which yields the following algorithm:
 
 \begin{algorithm}
-	% \caption{findingAccuracy1}
 	\label{GetAccuracy}
 	\begin{algorithmic}
 		\Function{GetAccuracy}{$f(D), B, P_{L}^{+}, P_{U}^{-}, \epsilon', \alpha$}
@@ -313,7 +312,7 @@ not they want to spend some of their privacy budget on the statistic. \newline
 We instead use a more conservative accuracy metric that will be independent of $D$.\footnote{Thanks to Victor Balcer for motivating
 this idea.} Note that, provided that $f(D) \in [-B, B]$ (as is guaranteed by our method for choosing $B$),
 the outer $clamp_B$ (after noise is added) can only help our accuracy. Thus, we can model the noise as always being upper bounded by
-$Z = \vert Y' \vert + \frac{\Lambda}{2}$ and ignore the cases in which the outer clamping binds bound. \newline
+$Z = \vert Y' \vert + \frac{\Lambda'}{2}$ and ignore the cases in which the outer clamping binds bound. \newline
 
 Let's first consider the question of, for a given accuracy $a$, finding confidence $\alpha$ such that
 $\mathbbm{P}(Z \geq a) \leq \alpha$. We would like for $\alpha$ to be as small as possible, though any sufficiently large
@@ -350,7 +349,6 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 The accuracy for the pure Laplace is given as $\frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon}$. Recalling that
 $\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can bound the multiplicative difference between the accuracy of the
 Snapping and Laplace as follows:
-% TODO: figure out how to bound in terms of a_{Laplace}
 \begin{align*}
 	a_{Snapping} &\leq \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'} \\
 			     &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\left( \frac{\epsilon - 2\eta}{1 + 12B\eta} \right)} \\
@@ -362,8 +360,36 @@ Snapping and Laplace as follows:
 				 + \frac{\epsilon(1 + 12B \eta)}{\left( \epsilon - 2\eta \right)^2} \cdot a_{Laplace}
 \end{align*}
 
-% \subsection{More detail on choosing $B$}
-% Up until this point, we have simply assumed that we have some $B$ such that $B > f(D)$.
+\subsection{Bias}
+Because of the clamping to $[-B,B]$, the snapping mechanism will almost always bias estimates towards $0$.
+I am not yet sure if it would be possible to give information about bias of the released statistic without leaking information
+about the data (I lean towards thinking that it is not), but I believe we could provide the bias for a statistic for
+a user's guesses about what $f(D)$ might be. \newline
+
+Let $f'(D)$ be the user's estimate of $f(D)$ and $\tilde{f}'(D)$ be the output of the snapping mechanism as applied to
+$f'(D)$. Without loss of generality, we will assume that $f'(D) \geq 0$. If it were not, we could
+multiply $f'(D)$ by $-1$ and use this algorithm to get the correct result.\footnote{(This works because our bounds, $-B, B$, are symmetric about $0$.)}
+We think about the distribution of noise not as the absolute value of noise (which we used earlier), but as
+being some distribution with support $[-B - f'(D), B - f'(D)]$. \newline
+
+We write the bias of the snapping mechanism as
+\[ Bias = \E(\tilde{f}'(D) - f'(D)) = \E\left( clamp_B\left( \lfloor f'(D) + Y \rceil_{\Lambda'} \right) - f'(D) \right) \]
+where $Y \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism. \newline
+
+To avoid trying to model the effects of $\lfloor \cdot \rceil_{\Lambda'}$ directly, we will move to considering
+a new quantity we will call $Bias^{+}$, which is an upper bound on the bias:
+\[ Bias^{+} = \E\left( clamp_B\left( f'(D) + Y^{*} \right) - f'(D) \right) \]
+where $Y^{*} \sim Laplace(-\frac{\Lambda}{2}, \lambda')$.\footnote{I believe this works,
+but need to think of how to prove it.} Now, define the following:
+\[ p_L = F_{Y^*}(-B - f'(D)) \]
+\[ p_U = 1 - F_{Y^*}(B - f'(D)) \]
+such that $F_{Y^*}$ is the CDF of $Y^*$ and $p_L, p_U$ are the probabilities that the lower/upper bounds are binding (respectively).
+Then we can write
+\[ Bias^+ = p_L \cdot (-B - f'(D)) + p_U \cdot (B - f'(D)) + \int_{-B-f'(D)}^{B-f(D)}y^* f(y^*) dy^* \]
+where $f$ is the PDF of $Y^*$. \newline
+
+There may be other notions of bias we could provide to a user. For example, the maximum possible bias
+(i.e. when $f(D) = \pm B$), or the expected bias over a set/distribution of $f'(D)$.
 
 % Appendices
 \begin{appendices}
