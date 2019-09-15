@@ -385,7 +385,7 @@ but need to think of how to prove it.} Now, define the following:
 \[ p_U = 1 - F_{Y^*}(B - f'(D)) \]
 such that $F_{Y^*}$ is the CDF of $Y^*$ and $p_L, p_U$ are the probabilities that the lower/upper bounds are binding (respectively).
 Then we can write
-\[ Bias^+ = p_L \cdot (-B - f'(D)) + p_U \cdot (B - f'(D)) + \int_{-B-f'(D)}^{B-f(D)}y^* f(y^*) dy^* \]
+\[ Bias^+ = p_L \cdot (-B - f'(D)) + p_U \cdot (B - f'(D)) + (1-p_l-p_U) \cdot \int_{-B-f'(D)}^{B-f(D)}y^* f(y^*) dy^* \]
 where $f$ is the PDF of $Y^*$. \newline
 
 There may be other notions of bias we could provide to a user. For example, the maximum possible bias
