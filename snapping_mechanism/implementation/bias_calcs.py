@@ -26,4 +26,4 @@ def get_bias(f_D, B, epsilon, Lambda):
 
 def get_max_bias(B, epsilon, Lambda):
     max_bias = get_bias(f_D = B, B = B, epsilon = epsilon, Lambda = Lambda)
-    return(set(-abs(max_bias), abs(max_bias)))
+    return({-abs(max_bias), abs(max_bias)})
