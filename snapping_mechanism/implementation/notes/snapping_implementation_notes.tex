@@ -373,8 +373,8 @@ We think about the distribution of noise not as the absolute value of noise (whi
 being some distribution with support $[-B - f'(D), B - f'(D)]$. \newline
 
 We write the bias of the snapping mechanism as
-\[ Bias = \E(\tilde{f}'(D) - f'(D)) = \E\left( clamp_B\left( \lfloor f'(D) + Y \rceil_{\Lambda'} \right) - f'(D) \right) \]
-where $Y \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism.
+\[ Bias = \E(\tilde{f}'(D) - f'(D)) = \E\left( clamp_B\left( \lfloor f'(D) + Y' \rceil_{\Lambda'} \right) - f'(D) \right) \]
+where $Y' \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism.
 Note that bias is a property of the snapping, not of any individual output of the mechanism.
 Thus, any individual output from the snapping mechanism could be as far as $2B$ from the actual raw statistic
 we wish to estimate. \newline
