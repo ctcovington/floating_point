@@ -347,10 +347,10 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 \end{algorithm}
 
 The accuracy for the pure Laplace is given as $\frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon}$. Recalling that
-$\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can bound the multiplicative difference between the accuracy of the
+$\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can represent the difference between the accuracy of the
 Snapping and Laplace as follows:
 \begin{align*}
-	a_{Snapping} &\leq \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'} \\
+	a_{Snapping} &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'} \\
 			     &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\left( \frac{\epsilon - 2\eta}{1 + 12B\eta} \right)} \\
 			     &= \frac{(1 + 12B \eta) \left( 1 + \ln \left( \frac{1}{\alpha} \right) \right)}{\epsilon - 2\eta} \\
 				 &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon - 2\eta} \\
@@ -374,7 +374,10 @@ being some distribution with support $[-B - f'(D), B - f'(D)]$. \newline
 
 We write the bias of the snapping mechanism as
 \[ Bias = \E(\tilde{f}'(D) - f'(D)) = \E\left( clamp_B\left( \lfloor f'(D) + Y \rceil_{\Lambda'} \right) - f'(D) \right) \]
-where $Y \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism. \newline
+where $Y \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism.
+Note that bias is a property of the snapping, not of any individual output of the mechanism.
+Thus, any individual output from the snapping mechanism could be as far as $2B$ from the actual raw statistic
+we wish to estimate. \newline
 
 To avoid trying to model the effects of $\lfloor \cdot \rceil_{\Lambda'}$ directly, we will move to considering
 a new quantity we will call $Bias^{+}$, which is an upper bound on the bias:
@@ -389,7 +392,8 @@ Then we can write
 where $f$ is the PDF of $Y^*$. \newline
 
 There may be other notions of bias we could provide to a user. For example, the maximum possible bias
-(i.e. when $f(D) = \pm B$), or the expected bias over a set/distribution of $f'(D)$.
+(i.e. when $f(D) = \pm B$) (already included in the code), or the expected bias over a set/distribution of $f'(D)$ (not
+yet implemented).
 
 % Appendices
 \begin{appendices}
