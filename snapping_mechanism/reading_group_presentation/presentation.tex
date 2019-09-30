@@ -3,9 +3,14 @@
 \usetheme{metropolis}
 \setbeamertemplate{bibliography item}{\insertbiblabel}
 
+\usepackage{pgfpages}
+\setbeamertemplate{note page}[plain]
+\setbeameroption{show notes on second screen=right}
+
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{bbm}
 
 \DeclareMathOperator\supp{supp}
 
@@ -24,29 +29,41 @@
 \begin{frame}
     \frametitle{Overview}
     \tableofcontents
+    \note{Introduce Laplace, that the promises break down when moving to implementation, and Mironov/Snapping}
 \end{frame}
 
 % Problem Statement
 \section{Problem Statement}
 
-\begin{frame}
+\begin{frame}[shrink=10]
     \frametitle{What is Differential Privacy and how do we achieve it?}
-    Let $M : \mathcal{X}^{n} \rightarrow \mathcal{R}$ be a randomized algorithm, $D$ and $D'$ be neighboring datasets (differing in one row), and $S \subseteq \mathcal{R}$. Then $M$ satisfies $(\epsilon, 0)$ differential privacy if
-    \[ \mathbb{P}(M(D) \in S) \leq \exp(\epsilon) \cdot \mathbb{P}(M(D') \in S) \hspace{5pt} \cite{DMNS2006} \]
+    Let $M : \mathcal{X}^{n} \rightarrow \mathcal{R}$ be a randomized algorithm, $D$ and $D'$ be neighboring data sets (differing in one row), and $S \subseteq \mathcal{R}$. Then $M$ satisfies $(\epsilon, \delta)$ differential privacy if
+    \[ \mathbb{P}(M(D) \in S) \leq \exp(\epsilon) \cdot \mathbb{P}(M(D') \in S) + \delta \hspace{5pt} \cite{DMNS06} \]
 
-    One way to construct such a randomized algorithm is to add noise to the function we want to compute. We will focus on the Laplace Mechanism, which satisfies $(\epsilon, 0)$ differential privacy:
-    \[ M_{Lap}(\mathcal{D}, f, \epsilon) = f(\mathcal{D}) + Lap \left(\frac{\Delta f}{\epsilon} \right) \hspace{5pt} \cite{DMNS2006} \]
+    \pause
+
+    % One way to construct such a randomized algorithm is the ``additive-noise approach''; adding noise to the function we want to compute
+    % such that the noise is independent of the data.
+    We will focus on the Laplace Mechanism, which satisfies $(\epsilon, 0)$ differential privacy:
+    \[ M_{Lap}(\mathcal{D}, f, \epsilon) = f(\mathcal{D}) + Lap \left(\frac{\Delta f}{\epsilon} \right) \hspace{5pt} \cite{DMNS06} \]
     where $f: \mathcal{D} \rightarrow \mathbb{R}$.
 
-    For $(\epsilon, 0)$-DP, it is necessary (but not sufficient) that $\supp\left( M_{Lap}(D, f, \epsilon) \right) = \supp\left( M_{Lap}(D', f, \epsilon) \right)$.
+    \pause
+
+    For $(\epsilon, 0)$-DP, it is necessary (but not sufficient) for $\supp\left( M(D) \right) = \supp\left( M(D') \right)$.
 \end{frame}
 
 \begin{frame}
     \frametitle{Moving from Theory to Practice}
-    Let $N$ be a stand-in for any type of noise we might want to add to produce a randomized algorithm. When $\supp(N) = \mathbb{R}$, the supports of mechanism outputs on neighboring datasets are equivalent. This is not necessarily true when $\supp(N) \neq \mathbb{R}$.\footnote{E.g. let $f(D) = 0, f(D) = \frac{1}{2}$, and $\supp(N) = \mathbb{Z}$.}
+    % Let $N$ be a stand-in for any type of noise we might want to add to produce a randomized algorithm.
+    Consider additive noise $N$. When $\supp(N) = \mathbb{R}$, the supports of mechanism outputs on neighboring data sets are equivalent.
+    This is not necessarily true when $\supp(N) \neq \mathbb{R}$.\footnote{E.g. let $f(D) = 0, f(D) = \frac{1}{2}$, and $\supp(N) = \mathbb{Z}$.}
 
-    Any software implementation of DP algorithms with necessarily have only finite precision, so $\supp(N) \neq \mathbb{R}$.
-    In the interest of concreteness, we will consider the IEEE-754 double-precision (binary64) floating point format.
+    % Any software implementation of DP algorithms will necessarily have only finite precision, so $\supp(N) \neq \mathbb{R}$.
+    % In the interest of concreteness, we will consider the IEEE-754 double-precision (binary64) floating point format.
+
+    Throughout the presentation, we will refer to an ``idealized mechanism'' as a mechanism that has access to infinite precision.
+    \note{We will be considering IEEE-754 double-precision floating point numbers.}
 \end{frame}
 
 % Floating Point
@@ -64,100 +81,349 @@
 \end{frame}
 
 % Laplace Mechanism
-\section{Issues with implementing the Laplace Mechanism}
+\section{Problems Implementing the Laplace Mechanism}
 \begin{frame}
     \frametitle{Generating the Laplace: Overview}
     The most common method of generating Laplace noise is to use inverse transform sampling. Let $Y$ be the random variable representing our Laplace noise with scale parameter $\lambda$. Then,
     \[ Y \leftarrow F^{-1}(U) = -\lambda ln (1-U) \]
-    where $F^{-1}$ is the inverse cdf of the Laplace and $U \sim Unif(0,1)$. \newline
+    where $F^{-1}$ is the inverse cdf of the Laplace and $U \sim Unif(0,1)$.
+    \note{We can reduce sampling from the Laplace to thinking about how
+          uniform random number generation and arithmetic operations
+          differ on $\mathbb{D}$ as opposed to $\mathbb{R}$.}
 \end{frame}
 
 \begin{frame}
     \frametitle{Sampling from Uniform}
-    Sampling from $\mathbb{D} \cap (0,1)$ is not particularly well-defined or consistent across implementations. Typically, the output of a uniform random sample is confined to a small subset of possible elements of $\mathbb{D}$. \cite{Mir2012}  
+    Sampling from $\mathbb{D} \cap (0,1)$ is not particularly well-defined or consistent across implementations. Typically, the output of a uniform random sample is confined to a small subset of possible elements of $\mathbb{D}$. \cite{Mir12}
     \begin{figure}
         \includegraphics[height=0.5\textheight, width=0.8\textwidth]{support_of_random_doubles.png}
-        \caption{Uniform random number generation \cite{Mir2012}}
+        \caption{Uniform random number generation \cite{Mir12}}
     \end{figure}
+    \note{Already, see that the set of possible draws from Laplace will differ by implementation.}
 \end{frame}
 
 \begin{frame}
     \frametitle{Natural Logarithm}
-    When implemented on uniform random numbers as normally generated, the natural log produces some values repeatedly and skips over others entirely. \cite{Mir2012} 
-    \begin{figure}        
+    When implemented on uniform random numbers as normally generated, the natural log produces some values repeatedly and skips over others entirely. \cite{Mir12}
+    \begin{figure}
         \includegraphics[height=0.3\textheight, width=0.475\textwidth]{fp_fig_one.png}
         \hfill
         \includegraphics[height=0.3\textheight, width=0.475\textwidth]{fp_fig_two.png}
-        \caption{Artefacts of natural logarithm on $\mathbb{D}$ \cite{Mir2012}}
+        \caption{Artefacts of natural logarithm on $\mathbb{D}$ \cite{Mir12}}
     \end{figure}
 \end{frame}
 
 \begin{frame}
     \frametitle{Attack}
-    Imagine we want to release a private version of the output of a function $f$ with $\Delta f = 1$ and $\epsilon = \frac{1}{3}$. 
-    Let $f(D) = 0, f(D') = 1$. 
+    Imagine we want to release a private version of the output of a function $f$ with $\Delta f = 1$ and $\epsilon = \frac{1}{3}$.
+    Let $f(D) = 0, f(D') = 1$.
     \begin{figure}
         \includegraphics[height=0.375\textheight, width=0.475\textwidth]{laplace_attack.png}
         \hfill
         \includegraphics[height=0.375\textheight, width=0.475\textwidth]{smoking_gun_probability.png}
-        \caption{Attack on Laplace Mechanism \cite{Mir2012}}
-    \end{figure} 
+        \caption{Attack on Laplace Mechanism \cite{Mir12}}
+    \end{figure}
+    Mironov performed an attack on PINQ, reconstructing 18K records in fewer
+    than 1000 queries with total $\epsilon < 10^{-6}$
+    \note{Figure shows probability that output is in the support of only one of the data sets
+          after 1 release. \newline
+
+          This is a lower bound on the probability that the DP guarantee is broken
+          (this is effectively showing that $\delta \neq 0$, but it could also be that $\epsilon$
+          is too low). \newline
+
+          White circles represent a common sampling method, black circles are from full
+          $\mathbb{D} \cap (0,1)$. \newline
+
+          Note that attack is still reasonably effective for large $\lambda$ (low purported privacy loss).
+          This allows an attacker to slowly use their privacy budget and possibly reconstruct an entire
+          database.
+          }
 \end{frame}
 
-\section{Inadequate Fixes}
 \begin{frame}
-    \frametitle{Rounding Noise}
-    Gaps happen at very fine precision, so can we round the noise to be less precise? Consider rounding noise to the nearest integer multiple of $2^{-32}$. 
-    Then, if $\vert f(D) - f(D') \vert < 2^{-32}$, then the supports of the mechanism outputs under the two data sets are completely disjoint.
-\end{frame}
-
-\begin{frame}
-    \frametitle{Smoothing Noise}
-    Can we smooth the noise and ensure that all possible doubles are in the support of the mechanism? Imagine $f(D) = 0, f(D') = 1$ and we are adding $Lap(1)$ noise, with $y$ a sample from $Lap(1)$. Consider the case when our mechanism output $x \in (0, \frac{1}{2})$. \newline
-
-    If the private data set is $D$, then $x = f(D) \oplus y$ will have unit of least precision (ulp) $< 2^{-53}$ because $y \in (0, \frac{1}{2})$. 
-    If the private data set is $D'$, then $x = f(D') \oplus y$ will have ulp $= 2^{-53}$ because $y \in (-1, -\frac{1}{2})$. \newline
-
-    So, conditional on $x \in (0, \frac{1}{2})$, the support of $f(D') + y$ is a proper subset of the support of $f(D) + y$. \newline
+    \frametitle{Inadequate Fixes}
+    \begin{itemize}
+        \item Rounding Noise?
+        \begin{itemize}
+            \item Consider rounding noise to the nearest integer multiple of $2^{-32}$. Then, if $\vert f(D) - f(D') \vert < 2^{-32}$, then the supports of the mechanism outputs under the two data sets are completely disjoint.
+        \end{itemize}
+        \item Smoothing Noise?
+        \begin{itemize}
+            \item If $f(D), f'(D)$ are in different bands of precision, the support of the mechanism on one will be a proper subset of the support of the mechanism on the other.
+        \end{itemize}
+    \end{itemize}
 \end{frame}
 
 % Snapping Mechanism
 \section{Snapping Mechanism}
+\begin{frame}
+    \frametitle{Mechanism Statement}
+    The Snapping Mechanism \cite{Mir12} is defined as follows:
+    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor clamp_{B}(f(D)) \oplus S \otimes \lambda \otimes LN(U^*) \rceil_{\Lambda} \right) \]
+    where $clamp_{B}$ restricts output to the range $[-B, B]$, $S \otimes \lambda \otimes LN(U^*)$ is Laplace noise generated with our improved random number generator (more on this later), and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest $\Lambda$, where $\Lambda$ is the smallest power of two at least as large as $\lambda$.
+
+    The mechanism guarantees $\left(\frac{1 + 12B \eta + 2\eta\lambda}{\lambda}, 0\right)$-DP, where $\eta$ is machine epsilon.
+
+    \note{Explain all the floating point symbols.}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Mechanism Motivation/Explanation}
+    % \emph{Keep working on this!}
+    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor clamp_{B}(f(D)) \oplus S \otimes \lambda \otimes LN(U^*) \rceil_{\Lambda} \right) \]
+    % \begin{itemize}
+        Let $\tilde{F}(\cdot)$ be the idealized version of the snapping mechanism. Then $\tilde{F}(\cdot)$ satisfies
+        $(\epsilon,0)$-DP.
+        For a given $x \in supp(\tilde{F}(D))$, consider:
+              \begin{itemize}
+                \item $[L,R) \subset (0,1)$ is the set mapped to $x$ by $\tilde{F}(D)$
+                \item $[l,r) \subset \left( \mathbb{D} \cap (0,1) \right)$ is the set mapped to $x$ by $\tilde{f}(D)$
+              \end{itemize}
+              The sampling mechanism, exact rounding, and clamping ensure that
+              $\vert R - L \vert \approx \vert r - l \vert$ in terms
+              of relative error, which yields the DP-guarantee of $\tilde{f}(D)$.
+    % \end{itemize}
+    \note{$clamp_B$ is stable $\vert x-y \vert \leq c \implies \vert clamp_B(x) - clamp_B(y) \vert \leq c$,
+          so the inner clamping preserves privacy guarantees. \newline
+
+          Rounding and outer clamping are considered post-processing. \newline
+          }
+\end{frame}
+
+\section{Implementation Considerations}
+% \begin{frame}
+%     \frametitle{Why the lack of implementation?}
+%     Not actually sure, but probably some combination of:
+%     \begin{itemize}
+%         \item Technical differences from other mechanisms
+%             \begin{itemize}
+%                 \item Privacy guarantee is a function of $\epsilon$
+%                 \item Non-private function estimate is an input to the mechanism
+%             \end{itemize}
+%         \item Generally seen as low-order concern
+%         \item Not immediately clear how to properly implement algorithm
+%             \begin{itemize}
+%                 % \item functional $\epsilon$
+%                 \item uniform random number generation
+%                 \item exact calculations
+%             \end{itemize}
+%         \item No utility analysis in the paper
+%     \end{itemize}
+% \end{frame}
+
 \begin{frame}
     \frametitle{Generating Uniform Random Numbers}
     Our goal is to sample from $\mathbb{D} \cap (0,1)$ while maintaining the properties of $\mathbb{R}$ as closely as possible. \newline
 
     IEEE 754 floating point numbers are of the form
     \[ (-1)^S (1.m_{1} \hdots m_{52})_{2} \times 2^{-E} \]
-    Let $S = 0$, $E \sim Geom(0.5)$, and $m_1, \hdots, m_{52} \sim Bern(0.5)$. This means that every $d \in \mathbb{D} \cap (0,1)$ has a chance of being represented, and are represented proportional to their unit of least precision.
+    Let: \newline
+    $S = 0$ \newline
+    $E \sim Geom(p=0.5)$ \newline
+    $\forall i \in \{1,\hdots,52\}: m_i \sim Bern(p=0.5)$. \newline
+
+    \note{This means that every $d \in \mathbb{D} \cap (0,1)$ has a chance of being represented, and each is represented proportional to its unit of least precision.
+    In order to sample from $\mathbb{D} \cap (0,1)$ in this way, we need only be able to generate cryptographically secure random bits.}
 \end{frame}
 
 \begin{frame}
-    \frametitle{Mechanism Statement}
-    The Snapping Mechanism \cite{Mir2012} is defined as follows:
-    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor clamp_{B}(f(D)) \oplus S \otimes \lambda \otimes LN(U^*) \rceil_{\Lambda} \right) \]   
-    where $clamp_{B}$ restricts output to the range $[-B, B]$, $S \otimes \lambda \otimes LN(U^*)$ is Laplace noise generated with our improved random number generator, and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest $\Lambda$, where $\Lambda$ is the smallest power of two at least as large as $\lambda$.
-    
-The mechanism guarantees $\left(\frac{1 + 12B \eta + 2\eta\lambda}{\lambda}, 0\right)$-DP, where $\eta$ is machine epsilon.
+    \frametitle{Exact Calculations}
+    Multiple points in the algorithm require exact (rather than accurate-faithful) rounding. \newline
+
+    Arithmetic with the natural logarithm is done with 118 bits of precision as described in \cite{DLM07}
+    to ensure exact rounding. \newline
+
+    All rounding is done via direct manipulation of the floating-point representation of the number. \newline
+    \note{Consider that for an arbitrary $x \in \mathbb{D}$ the natural log of $x$ is not necessarily $\in \mathbb{D}$. Let $a < ln(x) < b$ where $a,b \in \mathbb{D}$ and $\not\exists c \in \mathbb{D}: a < c < b$. Without loss of generality, assume that $\vert a-x \vert < \vert b - x \vert$, so that if we had infinite precision in calculating $ln(x)$ (but still had to output an element $\in \mathbb{D}$), we would output $a$.
+    Many mathematical libraries do what is called \textit{accurate-faithful} rounding, which means that in the scenario above our algorithm
+    would output $a$ with high probability. In an \textit{exact rounding} paradigm, the algorithm outputs $a$ with probability 1. \newline
+}
 \end{frame}
 
-\section{Implementation Considerations}
 \begin{frame}
-    \frametitle{Why the lack of implementation?}
-    Not actually sure, but probably some combination of:
+    \frametitle{Ensuring correct functional $\epsilon$}
+    The mechanism guarantees  $\left(\epsilon(1 + 12B \eta + 2\eta), 0\right)$-DP
+    (relative to the nominal $(\epsilon,0)$-DP if you were to use the Laplace Mechanism). \newline
+
+    We want the Snapping Mechanism's guarantee to be $(\epsilon, 0)$-DP. \newline
+
+    \pause
+
+    Rewrite Laplace inside of the Snapping Mechanism needs to be written as if it respects $\left( \frac{\epsilon - 2 \eta}{1 + 12B \eta}, 0\right)$-DP. \newline
+
+    We will refer to this rescaled $\epsilon$ as $\epsilon'$ and rewrite the Laplace random variable as $Y'$.
+\end{frame}
+
+\section{Utility Analysis}
+\begin{frame}
+    \frametitle{Difficulty of utility analysis}
+    Snapping Mechanism:
+    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor clamp_{B}(f(D)) \oplus S \otimes \lambda' \otimes LN(U^*) \rceil_{\Lambda'} \right) \]
+    What can we say about $\vert f(D) - \tilde{f}(D) \vert$?
     \begin{itemize}
-        \item No utility/error bounds in the paper
-        \item Not immediately clear how to properly implement suggested uniform random number generation
-        \item Technical differences from other mechanisms
-            \begin{itemize}
-                \item Privacy guarantee is a function of $\epsilon$
-                \item Non-private function estimate is an input to the mechanism
-            \end{itemize}
-        \item Generally seen as low-order concern
+        \item if user sets $B$ poorly (e.g. $\vert B \vert << \vert f(D) \vert$), then
+        $\vert f(D) - \tilde{f}(D) \vert$ could be arbitrarily bad
+        \begin{itemize}
+            \item We are currently setting $B$ within the mechanism,
+            rather than leaving it to the user
+        \end{itemize}
+        \item $\lfloor \cdot \rceil_{\Lambda'}$ makes distribution of noise more difficult to reason about
+        (becomes dependent on $f(D)$)
+        \begin{itemize}
+            \item We will make conservative statements based on worst-case
+        \end{itemize}
+        \note{Talk about why setting $B$ automatically helps both for empirical utility and the theoretical analysis.}
     \end{itemize}
 \end{frame}
 
-%TODO: Consider including details on implementation of $\lfloor \cdot \rceil_{\Lambda}$
+\begin{frame}
+    \frametitle{Automatically setting $B$}
+    Every statistic in $PSI$ that uses the Laplace Mechanism asks the user for bounds on the
+    range of their data. We can use these to get a maximum possible value for
+    each statistic.\footnote{Not immediately clear to me whether or not we would be able to do this in general.}
+
+    User provides $[D_{min}, D_{max}]$ as upper/lower bounds on the min/max value of $D$.\footnote{Values
+    outside of this range are clipped.}
+    For a given statistic $T(\cdot)$ we set $B$ such that
+    \[ \forall D \text{ s.t. } \min(D) \geq D_{min} \text{ and } \max(D) \leq D_{max}: B \geq \max T(D) \]
+
+    This prevents the inner clamping bound from binding, so we rewrite the mechanism as
+    \[ \tilde{f}(D) \triangleq clamp_{B} \left( \lfloor f(D) \oplus Y' \rceil_{\Lambda'} \right). \]
+\end{frame}
+
+\begin{frame}[shrink=20]
+    \frametitle{Error}
+    Assume $\Delta f = 1$. We define error to be the absolute difference between the true statistic and our mechanism
+    release. We want to compare Snapping error vs Laplace error:
+    \begin{align*}
+        \big\vert f(D) - \lfloor f(D) + Y' \rceil_{\Lambda'} \big\vert \nonumber &\leq \big\vert f(D) - (f(D) + Y') \big\vert + \big\vert f(D) + Y' - \lfloor f(D) + Y' \rceil_{\Lambda'} \big\vert \\
+                                                                                &\leq \vert -Y' \vert + \frac{\Lambda'}{2} \\
+                                                                                &= \vert Y' \vert + \frac{\Lambda'}{2} \\
+                                                                                % &\leq \vert Y' \vert + \lambda' \\
+                                                                                % &= \vert Y' \vert + \frac{1}{\epsilon'}
+    \end{align*}
+    % where $\epsilon' = \frac{\epsilon - 2\eta}{1+12B\eta} < \epsilon$.
+
+    Noting that $Y' = \frac{\epsilon}{\epsilon'}Y$, we have that, conditional on a privacy loss parameter $\epsilon$,
+    the Snapping error is at most
+    % $\left( \frac{1+12B\eta}{\epsilon-2\eta} \right)(1 + \epsilon y)$
+    $\frac{\epsilon (1 + 12B \eta)}{\epsilon - 2\eta}y + \frac{\Lambda'}{2}$
+    for a given amount of Laplace error $y$.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Empirical Utility Testing - $\epsilon = 0.001$}
+    \begin{figure}
+        \includegraphics[height=0.8\textheight, width=1\textwidth]{accuracy_snapping_vs_laplace_results_epsilon_0_001.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Empirical Utility Testing - $\epsilon = 1$}
+    \begin{figure}
+        \includegraphics[height=0.8\textheight, width=1\textwidth]{accuracy_snapping_vs_laplace_results_epsilon_1.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Accuracy (part 1)}
+    Let $Z = \vert Y' \vert + \frac{\Lambda'}{2}$ (the Snapping error) and $F_Z$ its CDF.
+    \begin{align}
+        F_{Z}(z) &= \mathbb{P}(Z \leq z) \nonumber \\
+                 &= \mathbb{P}\left( \vert Y' \vert + \frac{\Lambda'}{2} \leq z \right) \nonumber \\
+                 &= \mathbb{P} \left( \vert Y' \vert \leq z - \frac{\Lambda'}{2} \right) \nonumber \\
+                 &= 1 - \exp\left( -\epsilon'(z - \frac{\Lambda'}{2}) \right) \nonumber
+                %  &> \mathbb{P} \left( \vert Y' \vert \leq z - \lambda' \right) \nonumber \\
+                %  &= 1 - \exp\left( -\epsilon'(z - \lambda') \right) \nonumber \\
+                %  &= 1 - \exp\left( -\epsilon'z + 1 \right) \nonumber \\
+                %  &= F_{Z}^{-}(z) \nonumber
+    \end{align}
+    % So, $\forall z: F_{Z}^{-}(z) < F_{Z}(z)$.
+    % \note{Could have stopped at line 3 (this is what I do in the actual software implementation).
+    %       Moving from $\Lambda'$ to $\lambda'$ gives a looser bound, but is useful to put things in terms of
+    %       the original Laplace noise.}
+\end{frame}
+\begin{frame}
+    \frametitle{Accuracy (part 2)}
+    For a given $\alpha$, let accuracy be the $a$ such that $\alpha = \mathbb{P}(Z > a)$.
+    \begin{align*}
+        \mathbb{P}(Z > a) &= 1 - \mathbb{P}(Z \leq a) \\
+                     &= 1 - F_{Z}(a) \\
+                     &= \exp\left( -\epsilon'(a - \frac{\Lambda'}{2}) \right)
+					%  &\leq 1 - F_{Z}^{-}(a) \\
+					%  &= 1 - (1 - \exp(-\epsilon' a + 1)) \\
+					%  &= \exp(-\epsilon' a + 1)
+    \end{align*}
+    So, we have $a_{Snapping} = \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon'} + \frac{\Lambda'}{2}$,
+    compared to
+    $a_{Laplace} = \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon}$.
+    % \footnote{$a_{Snapping}$ is the smallest $a$ for which we can prove the bound holds.}
+\end{frame}
+
+\begin{frame}[shrink=20]
+    \frametitle{Accuracy (part 3)}
+    Recalling that
+$\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can represent the difference between the accuracy of the
+Snapping and Laplace mechanisms as follows:
+    \begin{align*}
+        a_{Snapping} &= \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon'} + \frac{\Lambda'}{2} \\
+                     &= \frac{\ln \left( \frac{1}{\alpha} \right)}{\left( \frac{\epsilon - 2\eta}{1 + 12B\eta} \right)} + \frac{\Lambda'}{2} \\
+                     &= \frac{(1 + 12B \eta) \left(\ln \left( \frac{1}{\alpha} \right) \right)}{\epsilon - 2\eta} + \frac{\Lambda'}{2} \\
+                     &= \frac{\epsilon(1 + 12B \eta)}{\epsilon - 2\eta } \cdot \left(\frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon} \right) + \frac{\Lambda'}{2} \\
+                     &= \frac{\epsilon(1 + 12B \eta)}{\epsilon - 2\eta} \cdot a_{Laplace} + \frac{\Lambda'}{2}
+                     % a_{Snapping} &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'} \\
+        %             &= \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\left( \frac{\epsilon - 2\eta}{1 + 12B\eta} \right)} \\
+        %             &= \frac{(1 + 12B \eta) \left( 1 + \ln \left( \frac{1}{\alpha} \right) \right)}{\epsilon - 2\eta} \\
+        %             &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \left( 1 + \ln \left( \frac{1}{\alpha} \right) \right) \\
+        %             &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon} \cdot \epsilon \\
+        %             &= \frac{\epsilon(1 + 12B \eta)}{\epsilon - 2\eta } \cdot \left( \frac{1}{\epsilon} + \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon} \right) \\
+        %             &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \left(1 + \epsilon \cdot a_{Laplace} \right)
+    \end{align*}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Accuracy Testing - $\epsilon = 0.001$}
+    \begin{figure}
+        \includegraphics[height=0.8\textheight, width=1\textwidth]{guaranteed_accuracy_snapping_vs_laplace_results_epsilon_0_001.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Accuracy Testing - $\epsilon = 1$}
+    \begin{figure}
+        \includegraphics[height=0.8\textheight, width=1\textwidth]{guaranteed_accuracy_snapping_vs_laplace_results_epsilon_1.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[shrink=30]
+    \frametitle{Bias}
+    We write the bias of the snapping mechanism as
+    \[ Bias = \mathbb{E}(\tilde{f}(D) - f(D)) = \mathbb{E}\left( clamp_B\left( \lfloor f(D) + Y' \rceil_{\Lambda'} \right) - f(D) \right) \]
+    where $Y' \sim Laplace(\lambda')$ and the expectation is over the randomness of the snapping mechanism.
+
+    Now, we define an upper bound on the Bias:
+    \[ Bias^{+} = \mathbb{E}\left( clamp_B\left( f'(D) + Y^{*} \right) - \hat{f}(D) \right) \]
+    where $Y^{*} \sim Laplace(-\frac{\Lambda}{2}, \lambda')$.
+
+    Now, define the following:
+    \[ p_L = F_{Y^*}(-B - \hat{f}(D)) \]
+    \[ p_U = 1 - F_{Y^*}(B - \hat{f}(D)) \]
+    such that $F_{Y^*}$ is the CDF of $Y^*$ and $p_L, p_U$ are the probabilities that the lower/upper bounds are binding (respectively).
+    Then we can write
+    \[ Bias^+ = p_L \cdot (-B - \hat{f}(D)) + p_U \cdot (B - \hat{f}(D)) + (1-p_l-p_U) \cdot \int_{-B-\hat{f}(D)}^{B-\hat{f}(D)}y^* f(y^*) dy^* \]
+    where $f$ is the PDF of $Y^*$.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Possible Next Steps}
+    \begin{itemize}
+        \item Continue integration into PSI
+        \item More considered choice of $B$
+        \item Tighter accuracy bounds
+        \item Extend to mechanisms other than Laplace
+    \end{itemize}
+\end{frame}
 
 \begin{frame}[allowframebreaks]
     \frametitle{References}
