@@ -4,6 +4,7 @@ import math
 import secrets
 import numpy as np
 import gmpy2
+import copy
 
 class Snapping_Mechanism:
     """ Implementation of the Snapping Mechanism from Mironov (2012)
@@ -48,6 +49,9 @@ class Snapping_Mechanism:
     """
 
     def __init__(self, mechanism_input, sensitivity, B, epsilon = None, accuracy = None, alpha = 0.05):
+        if gmpy2.get_max_precision() < 118:
+            raise ValueError('Software does not have access to sufficient precision to use the Snapping Mechanism')
+
         self.mechanism_input = mechanism_input
         self.sensitivity = sensitivity
         self.B = B
@@ -285,12 +289,19 @@ class Snapping_Mechanism:
             numeric: Sample from Unif(0,1)
         """
 
-        '''
-        Looking for more elegant way to sample from geometric
-        '''
-        geom = 1
-        while (secrets.randbits(1) == 0):
-            geom += 1
+        # generate draw from geometric distribution
+        # run through entire range to protect against timing attacks
+        # TODO: if geom produces no successes in 1024 attempts, we currently set it as if its last attempt was a
+        #       success -- should think more about this
+        geom = 0
+        for i in range(1, 1025):
+            if (secrets.randbits(1) == 1):
+                if geom == 0:
+                    geom = copy.deepcopy(i)
+        if geom == 0:
+            geom = 1024
+
+        # generate draw from uniform as described in Mironov
         u_star_exponent = bin(-geom + 1023)[2:]
         u_star_mantissa = ''.join([str(secrets.randbits(1)) for i in range(52)])
         u_star_sample = self._bin_to_double('0' + str(u_star_exponent) + str(u_star_mantissa))
@@ -308,32 +319,16 @@ class Snapping_Mechanism:
         eta = gmpy2.mpfr(2**-precision)
         return((epsilon - 2*eta) / (1 + 12*B*eta))
 
-    def _get_laplace_CDF(self, x, _lambda):
-        """
-        Gets P(Laplace(_lambda) <= x) for mean 0 Laplace
-
-        Parameters:
-            x (numeric): Number for which we want the area to the left
-            _lambda (numeric): Scale parameter for Laplace distribution
-
-        Return:
-            numeric: P(Y <= x) where Y ~ Laplace(_lambda)
-        """
-        if x <= 0:
-            return( (1/2) * math.e**(x/_lambda) )
-        else:
-            return(1 - (1/2) * math.e**(-x/_lambda) )
-
     def _get_accuracy(self):
         """
-        Get accuracy
+        Get accuracy as described in notes document
         """
         accuracy = ( (1+12*self.B*2**-self.precision) / (self.epsilon-2*2**-self.precision) ) * (1 + math.log(1 / self.alpha)) * (self.sensitivity)
         return(float(accuracy))
 
     def _get_epsilon(self):
         """
-        Get epsilon
+        Get epsilon as described in notes document
         """
         epsilon = ( (1+12*self.B*2**-self.precision) / (self.accuracy) ) * (1 + math.log(1 / self.alpha)) * (self.sensitivity) + 2*2**-self.precision
         return(float(epsilon))
@@ -342,26 +337,6 @@ class Snapping_Mechanism:
         """
         Set up parameters for calculations (noise, accuracy, etc.)
         """
-        # Set bits of numerical precision
-        #
-        # The precision is set based on one of two components of the mechanism; the epsilon redefinition or the
-        # exact rounding of the natural log, whichever needs more precision.
-        #
-        # The redefinition of epsilon (to epsilon') relies on the numerical precision and
-        # can lead to negative epsilon' values (which are not allowed as input to the laplace mechanism)
-        # if epsilon < 2*eta, where eta = 2^-precision
-        #
-        # Exact rounding, described in section 1.1 of http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf,
-        # is an alternative to accurate-faithful calculations (which is what most mathematical libraries are).
-        # If the real-valued number falls between two floating point numbers, accurate-faithful calculations
-        # return one of those two floating point numbers and usually returns the one that is closer to the
-        # real number. Exact rounding always returns the floating point number that is closer.
-        #
-        # I don't actually know what precision is needed for exact rounding.
-        # I chose 118 because this is the number of bits necessary for exact rounding of the log (see section
-        # 2.1 at http://www.ens-lyon.fr/LIP/Pub/Rapports/RR/RR2005/RR2005-37.pdf), but I should clarify this
-        # with someone who might know better
-
         gmpy2.get_context().precision = self.precision
 
         '''
