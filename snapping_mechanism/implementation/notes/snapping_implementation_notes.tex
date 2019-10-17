@@ -31,6 +31,7 @@ The implementation of the snapping mechanism utilizes a number of ideas describe
 Below we present the mechanisms as if they are operating on the set 64-bit floating point numbers, $\mathbb{D}$, rather than $\mathbb{R}$. We will use $\oplus$ and $\otimes$ to represent the floating-point implementations of addition and multiplication, respectively.
 
 \subsection{Laplace Mechanism}
+\label{subsec:laplace}
 Let $f$ be a function computed on a data set $D$ with sensitivity $\Delta_f$ and $\epsilon$ be the desired privacy parameter. Further, let $\lambda = \frac{\Delta_f}{\epsilon}$. Then the Laplace Mechanism is defined as:
 \[ M_{L}(D, f(\cdot), \lambda) = f(D) \oplus Y \]
 where $Y \sim Laplace(\lambda)$.
@@ -42,6 +43,7 @@ Let $B$ be a user-chosen quantity that reflects beliefs about reasonable bounds 
 where $clamp_{B}(\cdot)$ restricts output to the interval $[-B, B]$ and $\lfloor \cdot \rceil_{\Lambda}$ rounds to the nearest multiple of $\Lambda$, with ties resolved toward $+ \infty$.
 
 \section{Sampling from the Laplace}
+\label{sec:sampling_from_laplace}
 Mironov presents the Laplace noise as
 \[ S \otimes \lambda \otimes LN(U^*) \]
 where $S$ is a uniform draw over $\{\pm 1\}$, $\lambda = \frac{\Delta_f}{\epsilon}$, $LN(\cdot)$ is the floating-point implementation of the natural logarithm with exact rounding, and $U^*$ is the uniform distribution over $\mathbb{D} \cap (0,1)$ such that each double is output with proportion relative to its \href{https://en.wikipedia.org/wiki/Unit_in_the_last_place}{unit of least precision}. $\oplus$ and $\otimes$ are the floating-point implementations of addition and multiplication, respectively. \newline
@@ -58,9 +60,11 @@ Many mathematical libraries do what is called \textit{accurate-faithful} roundin
 Finally, we can choose to perform $\oplus$ and $\otimes$ with greater than normal precision if we so choose. For now, we are using the same 118 bits of precision for all the basic floating-point operations, using the assumption that exact rounding of basic arithmetic operations should require less precision than calculating the log. This should probably be made more rigorous at some point.
 
 \section{Implementation of $\lfloor \cdot \rceil_{\Lambda}$}
+\label{sec:implementation_of_rounding}
 The $\lfloor \cdot \rceil_{\Lambda}$ function takes an input and rounds it to the nearest multiple of $\Lambda$, where $\Lambda$ is the smallest power of two greater than or equal to $\lambda$. There are multiple steps to this implementation that are worth explaining.
 
 \subsection{Finding $\Lambda$}
+\label{subsec:finding_lambda}
 The algorithm receives $\lambda$ as input, but must find $\Lambda$ itself. First, represent $\lambda$ in its \href{https://en.wikipedia.org/wiki/Double-precision_floating-point_format}{IEEE-754 64-bit floating-point format}:
 \[ \lambda = (-1)^S (1.m_{1} \hdots m_{52})_2 * 2^{(e_1 \hdots e_{11})_2-1023}. \]
 We know $\lambda > 0$, so we know $S = 0$. Now, note that powers of two correspond exactly to the IEEE representations with $m_1 = \hdots = m_{52} = 0$. If $\lambda$ is already a power of two, then we simply return $\lambda$. Otherwise, we get the smallest power of two greater than $\lambda$ by changing to mantissa to $(0 \hdots 0)_2$ and increasing the exponent by 1. So, we have
@@ -82,6 +86,7 @@ We now want to round our input $x$ to the nearest multiple of $\Lambda$. We do s
 We split the process into three steps because each step can be performed exactly (with no introduction of floating-point error) via manipulation of the IEEE floating-point representation.
 
 \subsubsection{Calculate $x' = \frac{x}{\Lambda}$}
+\label{subsec:calculate_xprime}
 We can perform this division exactly because $\Lambda$ is a power of two. Let $\Lambda = 2^m$ for some $m \in \mathbb{Z}$ and let $x$ have the IEEE representation
 \[ x = (-1)^S (1.m_{1} \hdots m_{52})_2 * 2^{(e_1 \hdots e_{11})_2-1023}. \]
 Then we know that
@@ -90,6 +95,7 @@ We can rewrite $(e_1 \hdots e_{11})_2 - m$ as $(f_1 \hdots f_{11})_2$ and repres
 \[ x' = (-1)^S (1.m_{1} \hdots m_{52})_2 * 2^{(f_1 \hdots f_{11})_2-1023}. \]
 
 \subsubsection{Round $x'$ to nearest integer}
+\label{subsec:round_xprime}
 Let $y = (f_1 \hdots f_{11})_2-1023$. We present slightly different rounding algorithms based on the value of $y$. Note that we abuse notation a bit below; the repeating element notation $\bar{0}$ means to repeat the element (in this case, 0) until the rest of the larger section has been filled. For example, if the mantissa is 52 bits, then $101\bar{0}$ represents $101$ followed by 49 trailing zeros. \newline
 
 \textbf{Case 1: $y \geq 52$} \newline
@@ -125,9 +131,11 @@ This is exactly the same as Case 3, except we know there are some number of lead
 The notation directly above should not be taken literally, as 0 has a special IEEE representation (all 0s) that does not quite follow the standard formula. We present the standard formally for the sake of consistency and comparison with the earlier cases. \newline
 
 \subsubsection{Multiply $x''$ by $\Lambda$}
+\label{subsubsec:multiply_xdoubleprime}
 Finally, we multiply $x''$ by $\Lambda$ to get our desired result. This is effectively the opposite of Step 1, in that we add $m$ to the exponent of $x''$. The only difference is that we now have to deal with the case in which $x'' = 0$, because $0*2^m \neq 0$ if you implement multiplication by $2^m$ through exponent addition.\footnote{This is due to the special representation of 0.}
 
 \section{Redefinition of $\epsilon$}
+\label{sec:redefine_epsilon}
 Mironov states in the last line of the privacy proof that the snapping mechanism respects
 \[ \left( \frac{1 + 12B\eta}{\lambda} + 2\eta \right)\text{-DP} \]
 where $B$ is the clamping bound and $\eta$ is the machine-$\epsilon$.\footnote{This is a relatively minor point, but I have normally seen machine-$\epsilon$ defined as the smallest value $\epsilon$ such that $1 \oplus \epsilon \neq 1$. Mironov defines it as the largest $\epsilon$ such that $1 \oplus \epsilon = 1$.} We will take $\eta$ to be our floating-point precision, rather than a value that is machine-imposed, which allows us to use high-precision libraries to get smaller values of $\eta$.
@@ -143,18 +151,17 @@ This is not really sufficient to be usable in a system that might require budget
 This $\epsilon'$ is what will be used in the parameterization in the Laplace within the Snapping Mechanism. Thus, we need $\epsilon' > 0$, or $\epsilon > 2\eta$, where $\eta = 2^{-p}$, and $p$ is our floating point precision. This simplifies to $\epsilon > 2^{-p+1}$. Assuming we want minimum sufficient precision, we can find the smallest power of two $\geq \epsilon$, call it $2^{-m}$, and let $p = m+2$. For setting our mechanism-level precision, we use the larger of the $p$ we just found or the level necessary to perform exact rounding on the logarithm as described earlier (which we currently believe to be 118).
 
 \section{Utility}
+\label{sec:utility}
+
 \subsection{Error}
+\label{subsec:error}
 As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. Furthermore, we consider the case in which $\Delta f = 1$.
 The accuracy/error calculations should be multiplied by $\Delta f$ for the case in which $\Delta f \neq 0$. \newline
 
-One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate a bound on $f(D)$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a value or distribution we can reason about. \newline
+One possibility is that, instead of the user choosing $B$, we set it for them within the mechanism. We can use the data bounds the user provides to calculate an
+upper bound on $\vert f(D) \vert$.\footnote{This should, at least theoretically, be possible for $f: \mathcal{X} \rightarrow \mathbb{R}$ if $f$ is continuous and $\mathcal{X}$ is compact (thanks to Ira/Wikipedia for pointing this out).} We will refer to this maximal value of $f(D)$ as $B'$. This will allow us to set a $B$ such that we are sure that $clamp_B \left( f(D) \right)$ is non-binding. This will make it a bit easier to think about the error of the mechanism, as every component of the mechanism is now something with a value or distribution we can reason about. For now, we will mostly ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
 
-For now, we will mostly ignore exactly how this is done and focus on general analysis assuming that such a $B$ can be chosen.
-Our current method is to set $B = \max(\vert f(D) \vert) + \frac{1}{\epsilon'} \ln \left( \frac{1}{\gamma} \right)$ for some
-$\gamma \in (0,1]$, which implies that $B$ does not bind with probability $1 - \gamma$.
-\textbf{Victor told us about this argument, but we have not yet proven it.} \newline
-
-Consider the following quantity:
+Now, consider the following quantity:
 \[ N \sim \big \vert f(D) - clamp_B \big( \lfloor f(D) + Y' \rceil_{\Lambda'} \big) \big \vert \]
 with $Y' \sim Laplace(\lambda')$ where $\lambda' = \frac{1}{e'} = \frac{1 + 12B \eta}{\epsilon - 2\eta}$. This is the amount of noise added to $f(D)$ by the snapping mechanism.\footnote{Note that we ignore the inner $clamp_B$ inside the Snapping Mechanism because we set $B \geq f(D)$.} We have then:
 \begin{equation}
@@ -220,6 +227,7 @@ So we can rewrite $\eqref{snapped_noise}$ as
 Note that $N$ is always $\leq B + f(D)$.
 
 \subsection{Accuracy}
+\label{subsec:accuracy}
 We would like to convert the error into an accuracy estimate. Keeping in line with existing standards in PSI-Library, we define the accuracy $a$ for a given $\alpha$ as the $a$ such that $\alpha = \mathbb{P}(N > a)$, where $N$ is (as above) the error (relative to $f(D)$) introduced by the Snapping Mechanism. It is difficult to get an exact accuracy guarantee because of our inability to model the effects of $\lfloor \cdot \rceil_\Lambda'$, so we will instead refer to $a$ as the smallest $x$ such that $\mathbb{P}(N > x) \leq \alpha$. \newline
 
 Recall that $N \leq B + f(D)$. If we can get an upper bound on $P_{L} = \mathbb{P}(N = B + f(D))$, then we can start concerning ourselves only with the second two lines of $\eqref{snapped_noise_rewrite}$, which we will call $N_{sub}$. \newline
@@ -368,6 +376,7 @@ Snapping and Laplace as follows:
 \end{align*}
 
 \subsection{Bias}
+\label{subsec:bias}
 Because of the clamping to $[-B,B]$, the snapping mechanism will almost always bias estimates towards $0$.
 I am not yet sure if it would be possible to give information about bias of the released statistic without leaking information
 about the data (I lean towards thinking that it is not), but I believe we could provide the bias for a statistic for
@@ -375,7 +384,7 @@ a user's guesses about what $f(D)$ might be. \newline
 
 Let $\hat{f}(D)$ be the user's estimate of $f(D)$ and $\hat{\tilde{f}}(D)$ be the output of the snapping mechanism as applied to
 $\hat{f}(D)$. Without loss of generality, we will assume that $\hat{f}(D) \geq 0$. If it were not, we could
-multiply $f'(D)$ by $-1$ and use this algorithm to get the correct result.\footnote{(This works because our bounds, $-B, B$, are symmetric about $0$.)}
+multiply $f'(D)$ by $-1$ and use this algorithm to get the correct result.\footnote{This works because our bounds, $-B, B$, are symmetric about $0$.}
 We think about the distribution of noise not as the absolute value of noise (which we used earlier), but as
 being some distribution with support $[-B - \hat{f}(D), B - \hat{f}(D)]$. \newline
 
@@ -389,7 +398,7 @@ we wish to estimate. \newline
 To avoid trying to model the effects of $\lfloor \cdot \rceil_{\Lambda'}$ directly, we will move to considering
 a new quantity we will call $Bias^{+}$, which is an upper bound on the bias:
 \[ Bias^{+} = \E\left( clamp_B\left( f'(D) + Y^{*} \right) - \hat{f}(D) \right) \]
-where $Y^{*} \sim Laplace(-\frac{\Lambda}{2}, \lambda')$.\footnote{I believe this works,
+where $Y^{*} \sim Laplace(-\frac{\Lambda'}{2}, \lambda')$.\footnote{I believe this works,
 but need to think of how to prove it.} Now, define the following:
 \[ p_L = F_{Y^*}(-B - \hat{f}(D)) \]
 \[ p_U = 1 - F_{Y^*}(B - \hat{f}(D)) \]
@@ -401,6 +410,80 @@ where $f$ is the PDF of $Y^*$. \newline
 There may be other notions of bias we could provide to a user. For example, the maximum possible bias
 (i.e. when $f(D) = \pm B$) (already included in the code), or the expected bias over a set/distribution of $\hat{f}(D)$ (not
 yet implemented).
+
+\subsection{Choosing $B$}
+\label{subsec:choosing_B}
+Now that we have a general statements on error and bias, let's consider how best to choose $B$.
+We will always face a tradeoff in choosing $B$; choosing a larger $B$ necessitates adding more noise within
+our mechanism (and increases the variance), but choosing a smaller $B$ increases our bias.
+We would like the user to be able to express their preferences as to this bias-variance tradeoff,
+but we cannot tell them for certain how bad the bias will be, as it is a function of the private $f(D)$.
+We will instead attempt to give users control over the extent of this bias in the worst case, and then
+add noise appropriately to ensure the bias is no worse than their specified level. \newline
+
+We will call $B'$ the largest possible value of the statistic, conditional on the data bounds provided
+by the user. Our current approach, adapted from a suggestion by Victor Balcer, is to set
+\[ B = B' + \frac{\Lambda'}{2} \left(1 + 2\ln \left( \frac{1}{\gamma} \right) \right) \]
+for some $\gamma \in (0,1]$ specified by the user. This implies that $B$ does not bind with probability at least $1 - \gamma$,
+a fact we show below. \newline
+
+We know that $f(D) \in [-B', B']$ and that our worst case bias will happen when $f(D) = \pm B'$, so without loss of generality
+let $f(D) = B'$. We can appeal to $p_L, p_U$ defined in \autoref{subsec:bias} as the probability that the lower/upper
+clamping bounds are binding. We want to show that their sum is $\leq \gamma$.
+Recall that we defined $Y^* \sim Laplace(-\frac{\Lambda'}{2}, \lambda')$ because setting the mean to
+$-\frac{\Lambda}{2}$ produces an upper bound on the bias.
+Here, we will define $Y^{**} \sim Laplace(\frac{\Lambda'}{2}, \lambda')$, as this will produce an
+upper bound on the probability that the clamping bounds bind. We will define $p_{L**}, p_{U**}$
+relative to this distribution and use them instead of the $p_L, p_U$ defined earlier.
+\begin{align}
+	\Pr(\text{clamping bound binds}) &= p_{L**} + p_{U**} \nonumber \\
+							  &= F_{Y^{**}}(-B - B') + 1 - F_{Y^{**}}(B - B') \nonumber \\
+							  &= \frac{1}{2} + \frac{1}{2}sign\left(-B - B' - \frac{\Lambda'}{2}\right) \left( 1-\exp\left( -\epsilon' \cdot \big\vert -B - B' - \frac{\Lambda'}{2} \big\vert \right) \right) \nonumber \\
+							  &\hspace{10pt} + 1 \nonumber \\
+							  &\hspace{10pt} - \frac{1}{2} - \frac{1}{2}sign\left(B - B' - \frac{\Lambda'}{2}\right) \left( 1-\exp\left( -\epsilon' \cdot \big\vert B - B' - \frac{\Lambda'}{2} \big\vert \right) \right) \nonumber \\
+							  &= 1 - \frac{1}{2} \left( 1-\exp\left( -\epsilon' \cdot \big\vert -B - B' - \frac{\Lambda'}{2} \big\vert \right) \right) \nonumber \\
+							  &\hspace{20pt} - \frac{1}{2} \left( 1-\exp\left( -\epsilon' \cdot \big\vert B - B' - \frac{\Lambda'}{2} \big\vert \right) \right) \label{eq:choosing_B_p1} \\
+							  &= 1 - \frac{1}{2} \left(1-\exp \left( -\epsilon' \left( B + B' + \frac{\Lambda'}{2} \right) \right) \right) \nonumber \\
+							  &\hspace{20pt} - \frac{1}{2} \left( 1-\exp\left( -\epsilon' \left( B - B' - \frac{\Lambda'}{2} \right) \right) \right) \nonumber \\
+							  &= \frac{1}{2} \left( \exp \left( -\epsilon' \left( B + B' + \frac{\Lambda'}{2} \right) \right) + \exp\left( -\epsilon' \left( B - B' - \frac{\Lambda'}{2} \right) \right) \right) \nonumber \\
+							  &= \frac{1}{2} \bigg( \exp \left( \epsilon' \left( -2B' + \Lambda' \ln(\gamma) - \Lambda'  \right) \right) + \exp\left( \epsilon' \left( \Lambda' \ln(\gamma) \right) \right) \bigg) \nonumber \\
+							  &\leq \frac{1}{2} \bigg( \exp \left( \epsilon' \left( \Lambda' \ln(\gamma)\right) \right) + \exp\left( \epsilon' \left( \Lambda' \ln(\gamma) \right) \right) \bigg) \label{eq:choosing_B_p2} \\
+							  &= \gamma^{\epsilon' \Lambda'} \nonumber \\
+							  &\leq \gamma \label{eq:choosing_B_p3}
+\end{align}
+We get to \eqref{eq:choosing_B_p1} by noting that $-B-B'-\frac{\Lambda'}{2}$ is always negative and
+$B-B'-\frac{\Lambda'}{2}$ is always positive. \eqref{eq:choosing_B_p2} follows because
+$B', \Lambda' \geq 0$, and \eqref{eq:choosing_B_p3} because
+$\Lambda'\epsilon' = \frac{\Lambda'}{\lambda'} \geq 1$ and $\gamma \in (0,1]$. \newline
+
+Now, there is a problem in the statement above; we cannot use $\Lambda'$ to define $B$, as $B$ is used
+to define $\Lambda'$. We could try to upper bound $\Lambda'$ with something and substitute that into
+our formula for $B$ instead; a natural choice would be to try to use $\Lambda$.
+Unfortunately, $\Lambda' > \Lambda$ and we do not have a representation
+of $\Lambda'$ in terms of $\Lambda$ that is independent of $B$.
+Note that
+\[ \Lambda' \leq 2\lambda' = \frac{2 + 24B\eta}{\epsilon - 2\eta}. \]
+We can make $\eta$ almost arbitrarily small, which allows us to upper bound $B\eta$ by something small.
+Assume that after we have set $B$, we can find $\eta$ such that $B\eta leq 2^{-52}$ (note that this
+value was chosen arbitrarily). Then we know that $2 + 24B\eta \leq 2 + 24 \cdot 2^{-52}$.
+We know $\eta \leq 2^{-118}$ because of the precision needed for exact rounding of the natural log,
+so we will use $2^{-118}$ as the $\eta$ in the denominator to remove the dependence on $\eta$.
+So we have that
+\[ \Lambda' \leq \frac{2 + 24B\eta}{\epsilon-2\eta} \leq \frac{2+24 \cdot 2^{-52}}{\epsilon - 2^{-117}}. \]
+and thus a new statement for $B$:
+\[ B = B' + \frac{k}{2} \left(1 + 2\ln \left( \frac{1}{\gamma} \right) \right), \]
+where $k = \frac{2+24 \cdot 2^{-52}}{\epsilon - 2^{-117}}$.
+
+\textbf{NOTE: I should talk to someone about this, because I don't feel great about it. Also believe I need to update the implementation to
+		      be able to set $\eta$ based on this $B$ if this is the strategy I go with (it may already support this).}
+
+% \textbf{NOTE:} \newline
+% I am not sure how to do this in an actual implementation.
+% We need to set $B$ before finding $\Lambda'$, as $\Lambda', \lambda', \epsilon'$ are functions of $B$.
+% But then we cannot use $\Lambda'$ to define $B$. Note that
+% \[ \Lambda' \leq 2\lambda' = \frac{2 + 24B\eta}{\epsilon - 2\eta}. \]
+% For $\eta, B$ such that $B\eta << 1$,
+% \textbf{KEEP WORKING ON THIS!}
 
 % Appendices
 \begin{appendices}
