@@ -32,7 +32,9 @@ class Snapping_Mechanism:
         epsilon (numeric): DP-epsilon
         accuracy (numeric): Desired accuracy level
         alpha (numeric): Desired alpha level for accuracy calculations
-        B (numeric): Suggested clamping bound on the mechanism_input
+        gamma (numeric): Desired upper bound on the probability that clamping bounds bind
+        min_B (numeric): Maximum possible value of the non-private statistic (corresponds to minimum viable value of B)
+        B (numeric): Clamping bound
         _B_scaled (numeric): Clamping bound scaled by function sensitivity (used only by class internals)
         precision (numeric): Number of bits of precision used for arithmetic operations
         epsilon_prime (numeric): Epsilon value used for parameterization of Laplace within the Snapping Mechanism
@@ -44,23 +46,40 @@ class Snapping_Mechanism:
         get_snapped_noise: Returns epsilon-DP noise in according with snapping mechanism
 
     Example:
-        snap_object = Snapping_Mechanism(mechanism_input = 50, sensitivity = 0.012, B = 200, epsilon = 0.001, accuracy = None)
+        snap_object = Snapping_Mechanism(mechanism_input = 50, sensitivity = 0.012, min_B = 200, epsilon = 0.001, accuracy = None)
         snapped_noise = snap_object.get_snapped_noise()
     """
 
-    def __init__(self, mechanism_input, sensitivity, B, epsilon = None, accuracy = None, alpha = 0.05):
+    def __init__(self, mechanism_input, sensitivity, min_B, epsilon = None, accuracy = None, alpha = 0.05, gamma = 0.05):
         if gmpy2.get_max_precision() < 118:
             raise ValueError('Software does not have access to sufficient precision to use the Snapping Mechanism')
 
         self.mechanism_input = mechanism_input
         self.sensitivity = sensitivity
-        self.B = B
+        self.alpha = alpha # needs to be set before accuracy
+        self.gamma = gamma
         self.epsilon = epsilon
         self.accuracy = accuracy
         if self.epsilon is None and self.accuracy is None:
             raise ValueError('Either epsilon or accuracy must be provided.')
-        self.precision = 118
-        self.alpha = alpha # needs to be set before accuracy
+        if self.epsilon:
+            k = (2 + 24*2**-52) / (self.epsilon - 2**-117)
+        else:
+            epsilon_lb = math.log(1/self.alpha) * (self.sensitivity / self.accuracy)
+            k = (2 + 24*2**-52) / (epsilon_lb - 2**-117)
+        self.B = min_B + k/2 * (1 + 2*math.log(1/self.gamma))
+
+        # ensure that B*precision <= 2^-52
+        if self.B <= 2**66:
+            self.precision = 118
+        else:
+            # find smallest greater power of two (k is the power to which two is raised)
+            _, k = self._get_smallest_greater_power_of_two(self.B)
+
+            # add to precision to ensure that B*precision <= 2^-52
+            extra_precision = k - 66
+            self.precision = 118 + extra_precision
+
         if self.epsilon is None:
             self.epsilon = self._get_epsilon()
         elif self.accuracy is None:
