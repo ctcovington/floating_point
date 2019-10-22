@@ -375,6 +375,15 @@ Snapping and Laplace as follows:
 	% &= \frac{1 + 12B \eta}{\epsilon - 2\eta} \cdot \left(1 + \epsilon \cdot a_{Laplace} \right)\\
 \end{align*}
 
+We would also like to be able to go from accuracy to get epsilon. We perform some algebra
+and get
+\[ \epsilon' = \frac{\ln\left( \frac{1}{\alpha} \right)}{a - \frac{\Lambda'}{2}} \]
+or, if we wanted our overall $\epsilon$
+\begin{equation}
+	\label{eq:accuracy_to_overall_epsilon}
+	\epsilon = (1+12B\eta) \left( \frac{\ln\left( \frac{1}{\alpha} \right)}{a - \frac{\Lambda'}{2}} \right) + 2\eta.
+\end{equation}
+
 \subsection{Bias}
 \label{subsec:bias}
 Because of the clamping to $[-B,B]$, the snapping mechanism will almost always bias estimates towards $0$.
@@ -418,13 +427,16 @@ We will always face a tradeoff in choosing $B$; choosing a larger $B$ necessitat
 our mechanism (and increases the variance), but choosing a smaller $B$ increases our bias.
 We would like the user to be able to express their preferences as to this bias-variance tradeoff,
 but we cannot tell them for certain how bad the bias will be, as it is a function of the private $f(D)$.
-We will instead attempt to give users control over the extent of this bias in the worst case, and then
-add noise appropriately to ensure the bias is no worse than their specified level. \newline
+% We will instead attempt to give users control over the extent of this bias in the worst case, and then
+% add noise appropriately to ensure the bias is no worse than their specified level. \newline
+How exactly we will attempt to address this problem is a work in progress.
 
-We will call $B'$ the largest possible value of the statistic, conditional on the data bounds provided
-by the user. Our current approach, adapted from a suggestion by Victor Balcer, is to set
+\subsubsection{Attempt 1: $P(\text{clamping bound binds})$}
+\label{subsubsec:p_clamp_bound_binds}
+Let $B'$ be the largest possible value of the statistic, conditional on the data bounds provided
+by the user. One approach, adapted from a suggestion by Victor Balcer, is to set
 \[ B = B' + \frac{\Lambda'}{2} \left(1 + 2\ln \left( \frac{1}{\gamma} \right) \right) \]
-for some $\gamma \in (0,1]$ specified by the user. This implies that $B$ does not bind with probability at least $1 - \gamma$,
+for some $\gamma \in (0,1]$ specified by the user. This ensures that $B$ does not bind with probability at least $1 - \gamma$,
 a fact we show below. \newline
 
 We know that $f(D) \in [-B', B']$ and that our worst case bias will happen when $f(D) = \pm B'$, so without loss of generality
@@ -461,29 +473,33 @@ to define $\Lambda'$. We could try to upper bound $\Lambda'$ with something and 
 our formula for $B$ instead; a natural choice would be to try to use $\Lambda$.
 Unfortunately, $\Lambda' > \Lambda$ and we do not have a representation
 of $\Lambda'$ in terms of $\Lambda$ that is independent of $B$.
-Note that
+So, we need to try something else. Note that
 \[ \Lambda' \leq 2\lambda' = \frac{2 + 24B\eta}{\epsilon - 2\eta}. \]
 We can make $\eta$ almost arbitrarily small, which allows us to upper bound $B\eta$ by something small.
-Assume that after we have set $B$, we can find $\eta$ such that $B\eta leq 2^{-52}$ (note that this
-value was chosen arbitrarily). Then we know that $2 + 24B\eta \leq 2 + 24 \cdot 2^{-52}$.
+Assume that after we have set $B$, we can find $\eta$ such that $B\eta \leq 2^{-52}$ (note that $2^{-52}$
+was chosen somewhat arbitrarily). Then we know that $2 + 24B\eta \leq 2 + 24 \cdot 2^{-52}$.
 We know $\eta \leq 2^{-118}$ because of the precision needed for exact rounding of the natural log,
 so we will use $2^{-118}$ as the $\eta$ in the denominator to remove the dependence on $\eta$.
 So we have that
 \[ \Lambda' \leq \frac{2 + 24B\eta}{\epsilon-2\eta} \leq \frac{2+24 \cdot 2^{-52}}{\epsilon - 2^{-117}}. \]
 and thus a new statement for $B$:
 \[ B = B' + \frac{k}{2} \left(1 + 2\ln \left( \frac{1}{\gamma} \right) \right), \]
-where $k = \frac{2+24 \cdot 2^{-52}}{\epsilon - 2^{-117}}$.
+where $k = \frac{2+24 \cdot 2^{-52}}{\epsilon - 2^{-117}}$. \newline
 
-\textbf{NOTE: I should talk to someone about this, because I don't feel great about it. Also believe I need to update the implementation to
-		      be able to set $\eta$ based on this $B$ if this is the strategy I go with (it may already support this).}
-
-% \textbf{NOTE:} \newline
-% I am not sure how to do this in an actual implementation.
-% We need to set $B$ before finding $\Lambda'$, as $\Lambda', \lambda', \epsilon'$ are functions of $B$.
-% But then we cannot use $\Lambda'$ to define $B$. Note that
-% \[ \Lambda' \leq 2\lambda' = \frac{2 + 24B\eta}{\epsilon - 2\eta}. \]
-% For $\eta, B$ such that $B\eta << 1$,
-% \textbf{KEEP WORKING ON THIS!}
+In the case where the user provides accuracy instead of $\epsilon$, we can use
+\eqref{eq:accuracy_to_overall_epsilon}
+to get a lower bound on $\epsilon$. We can then use this lower bound on epsilon to
+calculate a $k$ that will be more than sufficiently large to satisfy our constraints.
+\begin{align*}
+	\epsilon &= (1+12B\eta) \left( \frac{\ln\left( \frac{1}{\alpha} \right)}{a - \frac{\Lambda'}{2}} \right) + 2\eta \\
+			 &\geq \frac{\ln\left( \frac{1}{\alpha} \right)}{a - \frac{\Lambda'}{2}} \\
+			 &\geq \frac{\ln\left( \frac{1}{\alpha} \right)}{a}.
+\end{align*}
+So if the user provides accuracy rather than $\epsilon$, we can set
+\[ k = \frac{2+24 \cdot 2^{-52}}{\epsilon^{-} - 2^{-117}} \]
+where $\epsilon^{-} = \frac{\ln\left( \frac{1}{\alpha} \right)}{a}$.
+Notice that this $\epsilon^{-}$ follows what we would get if we were using the Laplace,
+rather than Snapping.
 
 % Appendices
 \begin{appendices}
