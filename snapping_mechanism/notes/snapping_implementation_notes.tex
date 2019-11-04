@@ -427,14 +427,12 @@ We will always face a tradeoff in choosing $B$; choosing a larger $B$ necessitat
 our mechanism (and increases the variance), but choosing a smaller $B$ increases our bias.
 We would like the user to be able to express their preferences as to this bias-variance tradeoff,
 but we cannot tell them for certain how bad the bias will be, as it is a function of the private $f(D)$.
-% We will instead attempt to give users control over the extent of this bias in the worst case, and then
-% add noise appropriately to ensure the bias is no worse than their specified level. \newline
-How exactly we will attempt to address this problem is a work in progress.
+Our current method is below, though we are open to considering other possibilities.
 
-\subsubsection{Attempt 1: $P(\text{clamping bound binds})$}
+\subsubsection{$P(\text{clamping bound binds})$}
 \label{subsubsec:p_clamp_bound_binds}
-Let $B'$ be the largest possible value of the statistic, conditional on the data bounds provided
-by the user. One approach, adapted from a suggestion by Victor Balcer, is to set
+Let $B'$ be the largest possible value (in terms of absolute value) of the statistic, conditional on the data bounds provided
+by the user. Our current approach, adapted from a suggestion by Victor Balcer, is to set
 \[ B = B' + \frac{\Lambda'}{2} \left(1 + 2\ln \left( \frac{1}{\gamma} \right) \right) \]
 for some $\gamma \in (0,1]$ specified by the user. This ensures that $B$ does not bind with probability at least $1 - \gamma$,
 a fact we show below. \newline
@@ -500,6 +498,97 @@ So if the user provides accuracy rather than $\epsilon$, we can set
 where $\epsilon^{-} = \frac{\ln\left( \frac{1}{\alpha} \right)}{a}$.
 Notice that this $\epsilon^{-}$ follows what we would get if we were using the Laplace,
 rather than Snapping.
+
+\section{Finding $B'$}
+\label{sec:finding_B_prime}
+We have been assuming that we can find $B'$, the maximum value (in terms of absolute value) of a given statistic conditional on knowing
+the bounds of the data. I believe that, at least for now, this will need to be done manually for each statistic
+for which we want to use the Snapping Mechanism. I provide statements for a few statistics below.
+
+\subsection{Mean}
+\label{subsec:Bprime_mean}
+Let $x$ be a realization of a random variable $X$ with support $[a,b]$. Then
+\[ B' = \max \left( \vert a \vert, \vert b \vert \right). \]
+
+\subsection{Sample Variance}
+\label{subsec:Bprime_sample_variance}
+Let $x$ be a realization of a random variable $X$ with support $[a,b]$ and sample size $n$.
+We imagine two different cases: one with $n$ even and one with $n$ odd.
+Note that the maximum variance when $n$ is even is higher than when $n$ is odd,
+so we could simply use that as a universal bound. \newline
+
+\textbf{Case 1: $n$ even} \newline
+Let $x$ be such that it yields our largest possible variance;
+exactly half of our observations $= a$ and the other half $= b$.
+In this case our sample mean $\bar{x} = \frac{b+a}{2}$ and
+$\forall i: \vert x_i - \frac{b+a}{2} \vert = \vert \frac{b-a}{2} \vert$. So we have
+\begin{align*}
+	Var(x) &= \frac{1}{n-1} \sum_{i=1}^{n} (x_i - \bar{x})^2 \\
+		   &= \frac{1}{n-1} \sum_{i=1}^{n} \left(x_i - \frac{b+a}{2}\right)^2 \\
+		   &= \frac{1}{n-1} \sum_{i=1}^{n} \frac{(b-a)^2}{4} \\
+		   &= \left(\frac{n}{n-1}\right) \frac{(b-a)^2}{4}.
+\end{align*}
+Thus, we set $B' = \left(\frac{n}{n-1}\right) \frac{(b-a)^2}{4}$.
+
+\textbf{Case 2: $n$ odd} \newline
+Let $x$ have $\frac{n-1}{2}$ values $=a$, $\frac{n-1}{2}$ values $=b$, and one value $=\frac{b+a}{2}$
+(wlog, call this value $x_n$). Then $\bar{x} = \frac{b+a}{2}$ and
+$\forall i \neq n: \vert x_i - \frac{b-a}{2} \vert = \vert \frac{b-a}{2} \vert$, while
+$\vert x_n - \frac{b+a}{2} \vert = 0$. Then we have
+\begin{align*}
+	Var(x) &= \frac{1}{n-1} \sum_{i=1}^{n} (x_i - \bar{x})^2 \\
+		   &= \frac{1}{n-1} \sum_{i=1}^{n} \left(x_i - \frac{b+a}{2}\right)^2 \\
+		   &= \frac{1}{n-1} \sum_{i=1}^{n-1} \frac{(b-a)^2}{4} + 0 \\
+		   &= \frac{(b-a)^2}{4}.
+\end{align*}
+So, $B' = \frac{(b-a)^2}{4}$.
+
+\subsection{Sample Covariance}
+\label{subsec:Bprime_sample_covariance}
+Let $x,y$ be realizations of random variables $X,Y$ with supports $[a,b], [c,d]$ (respectively)
+and sample size $n$. Then we have
+\[ cov(x,y) = \frac{1}{n-1} \sum_{i=1}^{n}(x_i-\bar{x})(y_i-\bar{y}) \]
+where $\bar{x}, \bar{y}$ are the sample means of $x$ and $y$. The covariance is maximized
+when the $x_i,y_i$ deviate from their mean to the greatest possible extent, and always do
+so in the same direction. As with the sample variance, we have different cases for
+even and odd $n$. \newline
+
+\textbf{Case 1: $n$ even} \newline
+Let $x$ be such that half of its observations $= a$ and the other half $= b$ so that
+$\bar{x} = \frac{b+a}{2}$.
+Let $y$ be such that $x_i = a \iff y_i = c$ and $x_i = b \iff y_i = d$ and note that
+$\bar{y} = \frac{d+c}{2}$. WLOG, let $x_i=a, y_i=c$ for $i \in \{1,\hdots,\frac{n}{2}\}$ and
+$x_i=b, y_i=d$ for $i \in \{\frac{n}{2}+1,\hdots,n\}$. Then,
+\begin{align*}
+	cov(x,y) &= \frac{1}{n-1} \sum_{i=1}^{n}(x_i-\bar{x})(y_i-\bar{y}) \\
+			 &= \frac{1}{n-1} \sum_{i=1}^{n}\left(x_i-\frac{b+a}{2}\right)\left(y_i-\frac{d+c}{2}\right) \\
+			 &= \frac{1}{n-1} \left( \sum_{i=1}^{n/2} \frac{b-a}{2} \cdot \frac{d-c}{2} + \sum_{i=n/2 + 1}^{n}\frac{a-b}{2} \cdot \frac{c-d}{2} \right) \\
+			 &= \frac{1}{n-1} \left( \sum_{i=1}^{n/2} \frac{b-a}{2} \cdot \frac{d-c}{2} + \sum_{i=n/2 + 1}^{n}\frac{b-a}{2} \cdot \frac{d-c}{2} \right) \\
+			 &= \frac{1}{n-1} \sum_{i=1}^{n} \frac{b-a}{2} \cdot \frac{d-c}{2} \\
+			 &= \left( \frac{n}{n-1} \right) \cdot \frac{(b-a)(d-c)}{4},
+\end{align*}
+and so $B' = \left( \frac{n}{n-1} \right) \cdot \frac{(b-a)(d-c)}{4}$. \newline
+
+\textbf{Case 2: $n$ odd} \newline
+Let $x$ have $\frac{n-1}{2}$ values $=a$, $\frac{n-1}{2}$ values $=b$, and one value $=\frac{b+a}{2}$.
+Let $x_i=a \iff y_i=c$, $x_i=b \iff y_i=d$, and $x_i=\frac{b+a}{2} \iff y_i=\frac{d+c}{2}$.
+Note that $\bar{x} = \frac{b+a}{2}$ and $\bar{y} = \frac{d+c}{2}$. WLOG, let
+$x_i=a, y_i=c$ for $i \in \{1,\hdots,\frac{n-1}{2}\}$,
+$x_i=b, y_i=d$ for $i \in \{\frac{n-1}{2}+1,\hdots,n-1\}$, and
+$x_n =\frac{b+a}{2}, y_n=\frac{d+c}{2}$. Then,
+\begin{align*}
+	cov(x,y) &= \frac{1}{n-1} \sum_{i=1}^{n}(x_i-\bar{x})(y_i-\bar{y}) \\
+			 &= \frac{1}{n-1} \sum_{i=1}^{n}\left(x_i-\frac{b+a}{2}\right)\left(y_i-\frac{d+c}{2}\right) \\
+			 &= \frac{1}{n-1} \left( \left( \sum_{i=1}^{(n-1)/2} \frac{b-a}{2} \cdot \frac{d-c}{2} \right) + \left( \sum_{i=(n-1)/2 + 1}^{n-1}\frac{a-b}{2} \cdot \frac{c-d}{2}\right) + 0 \right) \\
+			 &= \frac{1}{n-1} \left( \sum_{i=1}^{(n-1)/2} \frac{b-a}{2} \cdot \frac{d-c}{2} + \sum_{i=(n-1)/2 + 1}^{n-1}\frac{b-a}{2} \cdot \frac{d-c}{2} \right) \\
+			 &= \frac{1}{n-1} \sum_{i=1}^{n-1} \frac{b-a}{2} \cdot \frac{d-c}{2} \\
+			 &= \frac{(b-a)(d-c)}{4},
+\end{align*}
+and so $B' = \frac{(b-a)(d-c)}{4}$.
+
+\subsection{Histogram}
+\label{subsec:Bprime_histogram}
+For a vector of size $n$, the maximum count for any bin is $n$. So $B' = n$.
 
 % Appendices
 \begin{appendices}
