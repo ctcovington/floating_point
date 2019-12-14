@@ -74,7 +74,7 @@ class Snapping_Mechanism:
             self.precision = 118
         else:
             # find smallest greater power of two (k is the power to which two is raised)
-            _, k = self._get_smallest_greater_power_of_two(self.B)
+            _, k = self._get_smallest_greater_or_eq_power_of_two(self.B)
 
             # add to precision to ensure that B*precision <= 2^-52
             extra_precision = k - 66
@@ -140,10 +140,9 @@ class Snapping_Mechanism:
         mantissa = binary[12:]
         return(sign, exponent, mantissa)
 
-    def _get_smallest_greater_power_of_two(self, _lambda):
+    def _get_smallest_greater_or_eq_power_of_two(self, _lambda):
         """
         Gets closest power of two that is >= _lambda.
-        NOTE: should really be called _get_smallest_greater_or_eq_power_of_two
 
         Parameters:
             _lambda (numeric): Argument to laplace noise
@@ -319,7 +318,7 @@ class Snapping_Mechanism:
 
         # NOTE: this Lambda is calculated relative to lambda = 1/epsilon' rather than sensitivity/epsilon' because we have already
         #       scaled by the sensitivity
-        Lambda_prime_scaled, m = self._get_smallest_greater_power_of_two(1/epsilon_prime)
+        Lambda_prime_scaled, m = self._get_smallest_greater_or_eq_power_of_two(1/epsilon_prime)
         Lambda_prime = Lambda_prime_scaled * self.sensitivity
 
         return(B_scaled, epsilon_prime, Lambda_prime, Lambda_prime_scaled, m)
