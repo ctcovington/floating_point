@@ -248,27 +248,30 @@ class Snapping_Mechanism:
 
     def _sample_from_uniform(self):
         """
-        Samples from uniform (0,1) as described by Mironov.
+        Samples from uniform [0,1) as described by Mironov.
         Meant to sample floating points proportional to their unit of least precision.
 
         Return:
-            numeric: Sample from Unif(0,1)
+            numeric: Sample from Unif[0,1)
         """
 
         # generate draw from geometric distribution
         # run through entire range to protect against timing attacks
-        # TODO: if geom produces no successes in 1024 attempts, we currently set it as if its last attempt was a
+        # TODO: if geom produces no successes in 1023 attempts, we currently set it as if its last attempt was a
         #       success -- should think more about this
         geom = 0
-        for i in range(1, 1025):
+        for i in range(1, 1024):
             if (secrets.randbits(1) == 1):
                 if geom == 0:
                     geom = copy.deepcopy(i)
         if geom == 0:
-            geom = 1024
+            geom = 1023
 
         # generate draw from uniform as described in Mironov
-        u_star_exponent = bin(-geom + 1023)[2:]
+	if geom == 1023:
+	    u_star_exponent = '0'
+	else:
+            u_star_exponent = bin(-geom + 1023)[2:]
         u_star_mantissa = ''.join([str(secrets.randbits(1)) for i in range(52)])
         u_star_sample = self._bin_to_double('0' + str(u_star_exponent) + str(u_star_mantissa))
         return(u_star_sample)
