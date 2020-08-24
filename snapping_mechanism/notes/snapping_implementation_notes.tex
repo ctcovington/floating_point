@@ -139,7 +139,7 @@ Finally, we multiply $x''$ by $\Lambda$ to get our desired result. This is effec
 Mironov states in the last line of the privacy proof that the snapping mechanism respects
 \[ \left( \frac{1 + 12B\eta}{\lambda} + 2\eta \right)\text{-DP} \]
 where $B$ is the clamping bound and $\eta$ is the machine-$\epsilon$.\footnote{This is a relatively minor point, but I have normally seen machine-$\epsilon$ defined as the smallest value $\epsilon$ such that $1 \oplus \epsilon \neq 1$. Mironov defines it as the largest $\epsilon$ such that $1 \oplus \epsilon = 1$.} We will take $\eta$ to be our floating-point precision, rather than a value that is machine-imposed, which allows us to use high-precision libraries to get smaller values of $\eta$.
-Because we have rescaled our function to $\Delta f = 1$, we have $\delta = \frac{1}{\epsilon'}$ and this is equivalent to
+Because we have rescaled our function to $\Delta f = 1$, we have $\lambda = \frac{1}{\epsilon'}$ and this is equivalent to
 \[ \big( \epsilon'(1 + 12B\eta) + 2\eta \big)\text{-DP}. \]
 For ease of notation, we will call this $\epsilon$-DP and it can be thought of as the privacy level relative to the Laplace. That is, if you were to get $\epsilon'$-DP from the Laplace Mechanism, you would get $\epsilon$-DP from the Snapping Mechanism. Put another way, you get $\epsilon$-DP from the Snapping Mechanism when you use $\epsilon'$ to parameterize the Laplace noise that is embedded within the Snapping Mechanism. \newline
 
