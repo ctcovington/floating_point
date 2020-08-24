@@ -154,6 +154,15 @@ This $\epsilon'$ is what will be used in the parameterization in the Laplace wit
 \section{Utility}
 \label{sec:utility}
 
+\subsection{Symmetric Bounds}
+\label{subsec:symmetric_bounds}
+Notice that, as stated, the clamping bounds $\{-B, B\}$ are symmetric about 0 -- this is sub-optimal in many cases. 
+For example if the user is confident that their statistic of interest lies in the range $[1,000, 2,000]$ they 
+would need to set $B = 2,000$, generate a clamping range $[-2,000, 2000]$, and have noise scaled by $4,000$ 
+rather than $1,000$. In practice, we can allow users to provide $[lower, upper]$ bounds on the statistic value rather 
+than a single $B$. If we let $s = \frac{upper - lower}{2}$ and pre-shift our statistic value by $s$ we can let 
+$B = upper - s$ and have a version with potentially much greater utility.
+
 \subsection{Error}
 \label{subsec:error}
 As originally written, it is difficult to reason about error/utility of the Snapping Mechanism. The output of the Snapping Mechanism relies on the user-provided bound, $B$, which could potentially cause the output to be arbitrarily far from $f(D)$. The potential for bias of the Snapping Mechanism decreases as $B$ increases in absolute value. Note however that $\epsilon'$ decreases as $B$ increases, thus causing the amount of added Laplace noise to increase. Throughout this section, we will assume that $f(D) \geq 0$, though a very similar process can be taken to reason about $f(D) \leq 0$. Furthermore, we consider the case in which $\Delta f = 1$.
@@ -347,8 +356,8 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 \begin{algorithm}
 	\label{GetAccuracy2}
 	\begin{algorithmic}
-		\Function{GetAccuracy2}{$B, \epsilon', \alpha$}
-			\State $a = \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'}$
+		\Function{GetAccuracy2}{$B, \epsilon', \Lambda', \alpha$}
+			\State $a = \frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon'} + \frac{\Lambda'}{2}$
 			\If{$a \geq 2B$}
 					\State\Return{2B}
 			\Else{}
@@ -357,6 +366,9 @@ exceeds this, as the outer clamp ensures that the mechanism output is $\in [-B, 
 		\EndFunction
 	\end{algorithmic}
 \end{algorithm}
+
+For a less tight, but simpler, bound we can use that $\frac{\Lambda'}{2} \leq \lambda' = 
+\frac{1}{\epsilon'}$ and set $a = \frac{1 + \ln \left( \frac{1}{\alpha} \right)}{\epsilon'}$. \newline 
 
 The accuracy for the pure Laplace is given as $\frac{\ln \left( \frac{1}{\alpha} \right)}{\epsilon}$. Recalling that
 $\epsilon' = \frac{\epsilon - 2\eta}{1 + 12B\eta}$ we can represent the difference between the accuracy of the
